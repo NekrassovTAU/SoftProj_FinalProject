@@ -1,0 +1,6 @@
+#ifndef FINAL_PROJECT_SPKMEANS_H
+#define FINAL_PROJECT_SPKMEANS_H
+
+void hello(void);
+
+#endif //FINAL_PROJECT_SPKMEANS_H
