@@ -1,6 +1,6 @@
-cmake_minimum_required(VERSION 3.19)
-project(Final_Project C)
+cmake_minimum_required(VERSION 3.17)
+project(SoftProj_Final C)
 
 set(CMAKE_C_STANDARD 90)
 
-add_library(Final_Project spkmeans.c spkmeans.h spkmeansmodule.c)
+add_library(SoftProj_Final spkmeans.c spkmeans.h spkmeansmodule.c)

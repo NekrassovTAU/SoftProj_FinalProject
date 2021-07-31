@@ -4,7 +4,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <math.h>
+
 #define FLT_MAX 3.402823466e+38F
+#define FLT_MIN 1.1754943508e-38F
 #define BUFFER_SIZE 1000
 #define INITIAL_ARRAY_SIZE 1000
 
@@ -44,6 +47,29 @@ int *processInitCentroidFile(char *initCentrFilename);
 
 void processDatapoints(char *filename, double **datap_array, double ***datapoint,
                        int **dArraySizeInfo);
+
+/****************************/
+double **calcWeightedAdjMatrix(int d, int arraySize, double ***datapoint);
+
+double calcWeight(int d, double ***datapoint, int i, int j);
+
+double **calcDiagDegMatrix(int d, int arraySize, double ***weightedAdjMatrix);
+
+double **calcNormLaplacian(int d, int arraySize, double ***weightedAdjMatrix, double ***diagDegMatrix);
+
+double **twoDinitialization(int arraySize, int identity);
+
+double **calcJacobi(int d, int arraySize, double ***normLaplacian);
+
+void copymatrix(int arraySize, double ***matrix1, double ***matrix2);
+
+void findmatrixP(int arraySize, double ***A, double ***P, int *row, int *col);
+
+void findMaxOffDiag(int arraySize, double ***A, int *row, int *col);
+
+void updateAtag(int arraySize, double ***Atag, double ***P, int row, int col);
+
+void updateV(int arraySize, double ***V, double ***P, int row, int col);
 
 /**
  * main, a shell function for the spectral clustering algorithm implementation
@@ -108,11 +134,12 @@ void checkArgs(int argc, char **origArgv) {
     free(datapoint);
     free(datap_array);
 }
- /**
- * Initializes datapoint-related arrays on a row-by-row basis
- * Mostly copied from HW1
- * TODO: DEAL WITH FREEING MEMORY ON ASSERT_ERROR
- */
+
+/**
+* Initializes datapoint-related arrays on a row-by-row basis
+* Mostly copied from HW1
+* TODO: DEAL WITH FREEING MEMORY ON ASSERT_ERROR
+*/
 void processDatapoints(char *filename, double **datap_array, double ***datapoint,
                        int **dArraySizeInfo) {
     char *token, *ptr, currRow[BUFFER_SIZE];
@@ -132,7 +159,7 @@ void processDatapoints(char *filename, double **datap_array, double ***datapoint
 
     arraySize = INITIAL_ARRAY_SIZE;
 
-    *datap_array = (double*)calloc(d * arraySize, sizeof(double));
+    *datap_array = (double *) calloc(d * arraySize, sizeof(double));
     ASSERT_ERROR(*datap_array != NULL)
 
     /** Populates datap_array with info from the file */
@@ -156,7 +183,7 @@ void processDatapoints(char *filename, double **datap_array, double ***datapoint
         }
     } while (fgets(currRow, BUFFER_SIZE, fptr));
 
-     fclose(fptr);
+    fclose(fptr);
 
     /* cut the datap_array to its intended arraySize */
     if (tail < d * arraySize - 1) {
@@ -227,7 +254,7 @@ double **
 goalBasedProcess(int d, int arraySize, double ***datapoint, enum goalEnum goal,
                  int **init_centroids) {
     double **weightedAdjMatrix, **diagDegMatrix, **normLaplacian,
-    **jacobiMatrix, **spkMatrix;
+            **jacobiMatrix, **spkMatrix;
     /** TODO: implement calc functions */
     weightedAdjMatrix = calcWeightedAdjMatrix(d, arraySize, datapoint);
     if (goal == wam) {
@@ -245,7 +272,7 @@ goalBasedProcess(int d, int arraySize, double ***datapoint, enum goalEnum goal,
         free(diagDegMatrix);
         return normLaplacian;
     }
-    jacobiMatrix = calcJacobi(d, arraySize, &weightedAdjMatrix, &diagDegMatrix);
+    jacobiMatrix = calcJacobi(d, arraySize, &normLaplacian);
     if (goal == jacobi) {
         free(weightedAdjMatrix);
         free(diagDegMatrix);
@@ -312,7 +339,7 @@ static double **makeTwoDimArray(double **array, int n, int m) {
     int i;
 
     twoDimArray = calloc(n, sizeof(double *));
-    if(twoDimArray == NULL){
+    if (twoDimArray == NULL) {
         return NULL;
     }
 
@@ -321,4 +348,296 @@ static double **makeTwoDimArray(double **array, int n, int m) {
     }
 
     return twoDimArray;
+}
+
+/**
+ * Takes the datapoint info, and returns the weighted adj matrix.
+ * @param d - dimension of datapoints
+ * @param arraySize - amount of datapoints
+ * @param datapoint - 2D-array containing all datapoints
+ * @return weighted adj matrix
+ */
+double **calcWeightedAdjMatrix(int d, int arraySize, double ***datapoint) {
+    double value;
+
+    /** creating 2-D array */
+    double **weightedAdjMatrix = (double **) calloc(arraySize, sizeof(double *));
+    for (int i = 0; i < arraySize; i++) {
+        weightedAdjMatrix[i] = (double *) calloc(arraySize, sizeof(double));
+    }
+    /** try this line instead
+    *  double **diagDegMatrix = twoDinitialization(int arraySize, int identity);
+    */
+
+    /** calculating the weights */
+    for (i = 0; i < arraySize; i++) {
+        for (int j = i + 1; j < arraySize; j++) {
+            value = calcWeight(d, datapoint, i, j);
+            weightedAdjMatrix[i][j] = value;
+            weightedAdjMatrix[j][i] = value;
+        }
+    }
+    return weightedAdjMatrix;
+}
+
+/**
+ * Takes the datapoint info, and returns the weighted adj (i,j).
+ * @param d - dimension of datapoints
+ * @param datapoint - 2D-array containing all datapoints
+ * @param i - the first datapoint
+ * @param j - the second datapoint
+ * @return weighted adj (i,j))
+ */
+double calcWeight(int d, double ***datapoint, int i, int j) {
+    double value = 0;
+
+    /** calculating the sum of the distances */
+    for (int t = 0; t < d; t++) {
+        value += pow(((*datapoint)[i][t] - (*datapoint)[j][t]), 2);
+    }
+
+    value = exp(sqrt(value) / (-2));
+    return value;
+}
+
+/**
+ * Takes the weightedAdjMatrix, and returns the sum of weights for each point.
+ * @param d - dimension of datapoints
+ *   do you need it ?
+ * @param arraySize - amount of datapoints
+ * @param weightedAdjMatrix - 2-D array containing all the weights
+ * @return 2-D array with sum of weights for each point
+ */
+double **calcDiagDegMatrix(int d, int arraySize, double ***weightedAdjMatrix) {
+
+    double sumofweights;
+
+    double **diagDegMatrix = (double **) calloc(arraySize, sizeof(double *));
+    for (int i = 0; i < arraySize; i++) {
+        diagDegMatrix[i] = (double *) calloc(arraySize, sizeof(double));
+    }
+
+/** try this line instead
+ *  double **diagDegMatrix = twoDinitialization(int arraySize, 0);
+ */
+
+    for (i = 0; i < arraySize; i++) {
+        sumofweights = 0;
+        for (int j = 0; j < arraySize; j++) {
+            sumofweights += (*weightedAdjMatrix)[i][j];
+        }
+        diagDegMatrix[i][i] = sumofweights;
+    }
+
+    return diagDegMatrix;
+}
+
+/**
+ * Takes the weighted and the diagonal matrices  info, and returns the normLaplacian matrix.
+ * @param d - dimension of datapoints
+ *  do you need it ?
+ * @param arraySize - amount of datapoints
+ * @param weightedAdjMatrix - 2-D array containing all the weights
+ * @param diagDegMatrix - 2-D array containing the sum of weights for each datapoint
+ * @return NormLaplacian matrix
+ */
+double **calcNormLaplacian(int d, int arraySize, double ***weightedAdjMatrix, double ***diagDegMatrix) {
+
+    double value;
+    /** 1-D array represents sqrt of diagDegMatrix */
+    double *sqrtDegMatrix = (double *) calloc(arraySize, sizeof(double));
+    /** TODO: ASSERT */
+
+    for (int i = 0; i < arraySize; i++) {
+        sqrtDegMatrix[i] = 1 / sqrt((*diagDegMatrix)[i][i]);
+    }
+
+    /**  sqrtDegMatrix[i][j] = sqrtDeg[i] * weight[i][j] * sqrtDeg[j] = sqrtDegMatrix[j][i]
+     * convince your self its true ;)   */
+    double **normLaplacian = twoDinitialization(arraySize, 0);
+    for (i = 0; i < arraySize; i++) {
+        normLaplacian[i][i] = 1;
+        for (int j = i + 1; j < arraySize; j++) {
+            value = -(sqrtDegMatrix[i] * (*weightedAdjMatrix)[i][j] * sqrtDegMatrix[j]);
+            normLaplacian[i][j] = value;
+            normLaplacian[j][i] = value;
+        }
+    }
+    free(sqrtDegMatrix);
+    return normLaplacian;
+}
+
+/**
+ * Gets size (N), and returns a matrix of size (N * N).
+ * @param arraySize - amount of datapoints
+ * @param identity - if identity = 1, initialize identity matrix. else, initialize matrix of '0'
+ * @return 2-D initialized array
+ */
+double **twoDinitialization(int arraySize, int identity) {
+
+    double **array = (double **) calloc(arraySize, sizeof(double *));
+    /** TODO: ASSERT */
+    if (identity == 1) {
+        for (int i = 0; i < arraySize; i++) {
+            array[i] = (double *) calloc(arraySize, sizeof(double));
+            /** TODO: ASSERT */
+            array[i][i] = 1;
+        }
+    } else {
+        for (int i = 0; i < arraySize; i++) {
+            array[i] = (double *) calloc(arraySize, sizeof(double));
+            /** TODO: ASSERT */
+        }
+    }
+    return array;
+}
+
+/**
+ * Takes the Lnorm matrix, and  ?? calculate Eigenvalues and Eigenvectors ??
+ * @param d - dimension of datapoints
+ *  do you need it ?
+ * @param arraySize - amount of datapoints
+ * @param normLaplacian - 2-D array
+ * @return  ??
+ */
+double **calcJacobi(int d, int arraySize, double ***normLaplacian) {
+    int row, col;
+    double **jacobiMatrix, **A, **Atag, **V, **P;
+
+    /** initialization */
+    A = twoDinitialization(arraySize, 0);
+    Atag = twoDinitialization(arraySize, 0);
+    V = twoDinitialization(arraySize, 1);
+    P = twoDinitialization(arraySize, 1);
+    jacobiMatrix = twoDinitialization(arraySize, 0);
+
+    /** TODO: ASSERT after each line ?  */
+
+    // probably left here by mistake. make sure before you delete it.  copymatrix(arraySize, normLaplacian, &curA); // curA = normLaplacian
+
+    /** run until convergence -  */
+    copymatrix(arraySize, normLaplacian, &Atag);
+    do {
+        copymatrix(arraySize, &Atag, &A);                   // A = Atag
+        findmatrixP(arraySize, &A, &P, &row, &col);  // P
+        updateAtag(arraySize, &Atag, &P, row, col);         // A' = P^T * A * P
+        updateV(arraySize, &V, &P, row, col);                                // V *= P
+    } while (!converge(&A, &Atag));                            // as long as delta > epsilon
+
+    return NULL; // has to be changed
+}
+
+/**
+ * Gets 2 matrices, and cupy the 1'st to the 2'nd a matrix of size (N * N).
+ * @param arraySize - amount of datapoints
+ * @param matrix1 - source matrix
+ * @param matrix2 - matrix to be updated
+ * TODO if ill copy " symmetric matrix, will that be better ?
+ */
+void copymatrix(int arraySize, double ***matrix1, double ***matrix2) {
+    for (int i = 0; i < arraySize; i++) {
+        for (int j = i; j < arraySize; j++) {
+            (*matrix2)[i][j] = (*matrix1)[i][j];
+        }
+    }
+}
+
+/**
+ * Calculate the rotation matrix P using the matrix A
+ * @param arraySize - amount of datapoints
+ * @param A - 2-D symmetric array
+ * @param P - 2-D array to be calculated
+ * @param row - pointer to the row index of the max value in A (off diag), to be calculated
+ * @param col - pointer to the col index of the max value in A (off diag), to be calculated
+ */
+void findmatrixP(int arraySize, double ***A, double ***P, int *row, int *col) {
+
+    double teta, t, c, s, sign = -1;
+    findMaxOffDiag(arraySize, A, row, col);
+
+    /** update P values */
+    teta = ((*A)[*col][*col] - (*A)[*row][*row]) / (2 * (*A)[*row][*col]);
+    if (teta >= 0) {
+        sign = 1;
+    }
+    t = sign / (fabs(teta) + sqrt(pow(teta, 2) + 1));
+    c = 1 / sqrt(pow(t, 2) + 1);
+    s = t * c;
+    (*P)[*row][*row] = c;
+    (*P)[*col][*col] = c;
+    (*P)[*row][*col] = s;
+    (*P)[*col][*row] = -s;
+
+}
+
+/**
+ * Find the index of the maximum odd-diag value in A.
+ * @param arraySize - amount of datapoints
+ * @param A - 2-D symmetric array
+ * @param row - pointer to the row index of the max value in A (off diag), to be calculated
+ * @param col - pointer to the col index of the max value in A (off diag), to be calculated
+ */
+void findMaxOffDiag(int arraySize, double ***A, int *row, int *col) {
+    double curmax = FLT_MIN;
+
+    for (int i = 0; i < arraySize; i++) {
+        for (int j = i + 1; j < arraySize; j++) {
+            if ((*A)[i][j] > curmax) {
+                curmax = (*A)[i][j];
+                *row = i;
+                *col = j;
+            }
+        }
+    }
+}
+
+/**
+ *Calculate the matrix Atag using the current A and P, A' = P^T * A * P.
+ * @param arraySize - amount of datapoints
+ * @param Atag - 2-D array to be calculated
+ * @patam p -  2-D symmetric array
+ * @param row - row index of the max value in Atag (off diag)
+ * @param col - col index of the max value in Atag (off diag)
+ */
+void updateAtag(int arraySize, double ***Atag, double ***P, int row, int col) {
+
+    double c, s, ri, rj, ij;
+    c = (*Atag)[row][row];
+    s = (*Atag)[row][col];
+
+    /** update each Atag[r,i]/Atag[r,j], for : r != i,j
+     * can cut computation in half because the matrix is symmetric */
+    for (int r = 0; r < arraySize; r++) {
+        ri = (*Atag)[r][row];
+        rj = (*Atag)[r][col];
+        if ((r != row) && (r != col)) {
+            (*Atag)[r][row] = (c * ri) - (s * rj);
+            (*Atag)[r][col] = (c * rj) + (s * ri);
+        }
+    }
+    /**  Atag[i,i] / Atag[j,j]/ Atag[i,j] / Atag[j,i] */
+    ij = (*Atag)[row][col];
+    (*Atag)[row][row] = (c * c * (*Atag)[row][row]) + (s * s * (*Atag)[col][col]) - (2 * s * c * ij);
+    (*Atag)[col][col] = (s * s * (*Atag)[row][row]) + (c * c * (*Atag)[col][col]) - (2 *s * c* ij);
+    (*Atag)[row][col] = 0;
+    (*Atag)[col][row] = 0;
+
+}
+
+void updateV(int arraySize, double ***V, double ***P, int row, int col) {
+    double ri, rj, c, s;
+    c = (*P)[row][row];
+    s = (*P)[row][col];
+
+    for (int r = 0; r < arraySize; r++) {
+        ri = (*V)[r][row];
+        rj = (*V)[r][col];
+        /** V'[r][row] = (V[r][row] * P[row][row]) + (V[r][col] * P[col][row])
+         * V'(r,i) = (V(r,i) * c) + ((V(r,j) * (-s)) */
+        (*V)[r][row] = (ri * c) + (rj * -s);
+
+        /** V'[r][col] = (V[r][row] * P[row][col]) + (V[r][col] * P[col][col])
+         * V'(r,j) = (V(r,i) * s) + ((V(r,j) * c) */
+        (*V)[r][col] = (ri * s) + (rj * c);
+    }
 }
