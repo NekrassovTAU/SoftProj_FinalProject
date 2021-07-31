@@ -53,13 +53,14 @@ double **calcWeightedAdjMatrix(int d, int arraySize, double ***datapoint);
 
 double calcWeight(int d, double ***datapoint, int i, int j);
 
-double **calcDiagDegMatrix(int d, int arraySize, double ***weightedAdjMatrix);
+double **calcDiagDegMatrix(int arraySize, double ***weightedAdjMatrix);
 
-double **calcNormLaplacian(int d, int arraySize, double ***weightedAdjMatrix, double ***diagDegMatrix);
+double **calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
+                           double ***diagDegMatrix);
 
 double **twoDinitialization(int arraySize, int identity);
 
-double **calcJacobi(int d, int arraySize, double ***normLaplacian);
+double **calcJacobi(int arraySize, double ***normLaplacian);
 
 void copymatrix(int arraySize, double ***matrix1, double ***matrix2);
 
@@ -70,6 +71,10 @@ void findMaxOffDiag(int arraySize, double ***A, int *row, int *col);
 void updateAtag(int arraySize, double ***Atag, double ***P, int row, int col);
 
 void updateV(int arraySize, double ***V, double ***P, int row, int col);
+
+int converge(double ***A, double ***Atag);
+
+double **calcSpectralClusters();
 
 /**
  * main, a shell function for the spectral clustering algorithm implementation
@@ -101,7 +106,7 @@ void checkArgs(int argc, char **origArgv) {
     goal = checkGoal(origArgv[2]);
     ASSERT_ARGS(goal != INVALID)
 
-    dArraySizeInfo = (int *) calloc(2, sizeof(int));
+    dArraySizeInfo = calloc(2, sizeof(int));
 
     /** deals with optional init_centroids argument, process files accordingly
      * and initialize the process to achieve the provided goal*/
@@ -138,7 +143,6 @@ void checkArgs(int argc, char **origArgv) {
 /**
 * Initializes datapoint-related arrays on a row-by-row basis
 * Mostly copied from HW1
-* TODO: DEAL WITH FREEING MEMORY ON ASSERT_ERROR
 */
 void processDatapoints(char *filename, double **datap_array, double ***datapoint,
                        int **dArraySizeInfo) {
@@ -159,7 +163,7 @@ void processDatapoints(char *filename, double **datap_array, double ***datapoint
 
     arraySize = INITIAL_ARRAY_SIZE;
 
-    *datap_array = (double *) calloc(d * arraySize, sizeof(double));
+    *datap_array = calloc(d * arraySize, sizeof(double));
     ASSERT_ERROR(*datap_array != NULL)
 
     /** Populates datap_array with info from the file */
@@ -260,19 +264,19 @@ goalBasedProcess(int d, int arraySize, double ***datapoint, enum goalEnum goal,
     if (goal == wam) {
         return weightedAdjMatrix;
     }
-    diagDegMatrix = calcDiagDegMatrix(d, arraySize, &weightedAdjMatrix);
+    diagDegMatrix = calcDiagDegMatrix(arraySize, &weightedAdjMatrix);
     if (goal == ddg) {
         free(weightedAdjMatrix);
         return diagDegMatrix;
     }
-    normLaplacian = calcNormLaplacian(d, arraySize, &weightedAdjMatrix,
+    normLaplacian = calcNormLaplacian(arraySize, &weightedAdjMatrix,
                                       &diagDegMatrix);
     if (goal == lnorm) {
         free(weightedAdjMatrix);
         free(diagDegMatrix);
         return normLaplacian;
     }
-    jacobiMatrix = calcJacobi(d, arraySize, &normLaplacian);
+    jacobiMatrix = calcJacobi(arraySize, &normLaplacian);
     if (goal == jacobi) {
         free(weightedAdjMatrix);
         free(diagDegMatrix);
@@ -358,12 +362,14 @@ static double **makeTwoDimArray(double **array, int n, int m) {
  * @return weighted adj matrix
  */
 double **calcWeightedAdjMatrix(int d, int arraySize, double ***datapoint) {
+
+    int i, j;
     double value;
 
     /** creating 2-D array */
-    double **weightedAdjMatrix = (double **) calloc(arraySize, sizeof(double *));
-    for (int i = 0; i < arraySize; i++) {
-        weightedAdjMatrix[i] = (double *) calloc(arraySize, sizeof(double));
+    double **weightedAdjMatrix = calloc(arraySize, sizeof(double *));
+    for (i = 0; i < arraySize; i++) {
+        weightedAdjMatrix[i] = calloc(arraySize, sizeof(double));
     }
     /** try this line instead
     *  double **diagDegMatrix = twoDinitialization(int arraySize, int identity);
@@ -371,7 +377,7 @@ double **calcWeightedAdjMatrix(int d, int arraySize, double ***datapoint) {
 
     /** calculating the weights */
     for (i = 0; i < arraySize; i++) {
-        for (int j = i + 1; j < arraySize; j++) {
+        for (j = i + 1; j < arraySize; j++) {
             value = calcWeight(d, datapoint, i, j);
             weightedAdjMatrix[i][j] = value;
             weightedAdjMatrix[j][i] = value;
@@ -389,10 +395,12 @@ double **calcWeightedAdjMatrix(int d, int arraySize, double ***datapoint) {
  * @return weighted adj (i,j))
  */
 double calcWeight(int d, double ***datapoint, int i, int j) {
+
+    int t;
     double value = 0;
 
     /** calculating the sum of the distances */
-    for (int t = 0; t < d; t++) {
+    for (t = 0; t < d; t++) {
         value += pow(((*datapoint)[i][t] - (*datapoint)[j][t]), 2);
     }
 
@@ -402,19 +410,18 @@ double calcWeight(int d, double ***datapoint, int i, int j) {
 
 /**
  * Takes the weightedAdjMatrix, and returns the sum of weights for each point.
- * @param d - dimension of datapoints
- *   do you need it ?
  * @param arraySize - amount of datapoints
  * @param weightedAdjMatrix - 2-D array containing all the weights
  * @return 2-D array with sum of weights for each point
  */
-double **calcDiagDegMatrix(int d, int arraySize, double ***weightedAdjMatrix) {
+double **calcDiagDegMatrix(int arraySize, double ***weightedAdjMatrix) {
 
+    int i, j;
     double sumofweights;
 
-    double **diagDegMatrix = (double **) calloc(arraySize, sizeof(double *));
-    for (int i = 0; i < arraySize; i++) {
-        diagDegMatrix[i] = (double *) calloc(arraySize, sizeof(double));
+    double **diagDegMatrix = calloc(arraySize, sizeof(double *));
+    for (i = 0; i < arraySize; i++) {
+        diagDegMatrix[i] = calloc(arraySize, sizeof(double));
     }
 
 /** try this line instead
@@ -423,7 +430,7 @@ double **calcDiagDegMatrix(int d, int arraySize, double ***weightedAdjMatrix) {
 
     for (i = 0; i < arraySize; i++) {
         sumofweights = 0;
-        for (int j = 0; j < arraySize; j++) {
+        for (j = 0; j < arraySize; j++) {
             sumofweights += (*weightedAdjMatrix)[i][j];
         }
         diagDegMatrix[i][i] = sumofweights;
@@ -434,36 +441,41 @@ double **calcDiagDegMatrix(int d, int arraySize, double ***weightedAdjMatrix) {
 
 /**
  * Takes the weighted and the diagonal matrices  info, and returns the normLaplacian matrix.
- * @param d - dimension of datapoints
- *  do you need it ?
  * @param arraySize - amount of datapoints
  * @param weightedAdjMatrix - 2-D array containing all the weights
  * @param diagDegMatrix - 2-D array containing the sum of weights for each datapoint
  * @return NormLaplacian matrix
  */
-double **calcNormLaplacian(int d, int arraySize, double ***weightedAdjMatrix, double ***diagDegMatrix) {
+double **calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
+                           double ***diagDegMatrix) {
 
-    double value;
+    int i, j;
+    double value, *sqrtDegMatrix, **normLaplacian;
+
+    normLaplacian = twoDinitialization(arraySize, 0);
+
     /** 1-D array represents sqrt of diagDegMatrix */
-    double *sqrtDegMatrix = (double *) calloc(arraySize, sizeof(double));
-    /** TODO: ASSERT */
+    sqrtDegMatrix = calloc(arraySize, sizeof(double));
+    ASSERT_ERROR(sqrtDegMatrix)
 
-    for (int i = 0; i < arraySize; i++) {
+    for (i = 0; i < arraySize; i++) {
         sqrtDegMatrix[i] = 1 / sqrt((*diagDegMatrix)[i][i]);
     }
 
     /**  sqrtDegMatrix[i][j] = sqrtDeg[i] * weight[i][j] * sqrtDeg[j] = sqrtDegMatrix[j][i]
      * convince your self its true ;)   */
-    double **normLaplacian = twoDinitialization(arraySize, 0);
+
     for (i = 0; i < arraySize; i++) {
         normLaplacian[i][i] = 1;
-        for (int j = i + 1; j < arraySize; j++) {
+        for (j = i + 1; j < arraySize; j++) {
             value = -(sqrtDegMatrix[i] * (*weightedAdjMatrix)[i][j] * sqrtDegMatrix[j]);
             normLaplacian[i][j] = value;
             normLaplacian[j][i] = value;
         }
     }
+
     free(sqrtDegMatrix);
+    sqrtDegMatrix = NULL;
     return normLaplacian;
 }
 
@@ -475,17 +487,19 @@ double **calcNormLaplacian(int d, int arraySize, double ***weightedAdjMatrix, do
  */
 double **twoDinitialization(int arraySize, int identity) {
 
-    double **array = (double **) calloc(arraySize, sizeof(double *));
+    int i;
+
+    double **array = calloc(arraySize, sizeof(double *));
     /** TODO: ASSERT */
     if (identity == 1) {
-        for (int i = 0; i < arraySize; i++) {
-            array[i] = (double *) calloc(arraySize, sizeof(double));
+        for (i = 0; i < arraySize; i++) {
+            array[i] = calloc(arraySize, sizeof(double));
             /** TODO: ASSERT */
             array[i][i] = 1;
         }
     } else {
-        for (int i = 0; i < arraySize; i++) {
-            array[i] = (double *) calloc(arraySize, sizeof(double));
+        for (i = 0; i < arraySize; i++) {
+            array[i] = calloc(arraySize, sizeof(double));
             /** TODO: ASSERT */
         }
     }
@@ -494,13 +508,11 @@ double **twoDinitialization(int arraySize, int identity) {
 
 /**
  * Takes the Lnorm matrix, and  ?? calculate Eigenvalues and Eigenvectors ??
- * @param d - dimension of datapoints
- *  do you need it ?
  * @param arraySize - amount of datapoints
  * @param normLaplacian - 2-D array
  * @return  ??
  */
-double **calcJacobi(int d, int arraySize, double ***normLaplacian) {
+double **calcJacobi(int arraySize, double ***normLaplacian) {
     int row, col;
     double **jacobiMatrix, **A, **Atag, **V, **P;
 
@@ -513,7 +525,8 @@ double **calcJacobi(int d, int arraySize, double ***normLaplacian) {
 
     /** TODO: ASSERT after each line ?  */
 
-    // probably left here by mistake. make sure before you delete it.  copymatrix(arraySize, normLaplacian, &curA); // curA = normLaplacian
+    // probably left here by mistake. make sure before you delete it.
+    // copymatrix(arraySize, normLaplacian, &curA); // curA = normLaplacian
 
     /** run until convergence -  */
     copymatrix(arraySize, normLaplacian, &Atag);
@@ -527,6 +540,10 @@ double **calcJacobi(int d, int arraySize, double ***normLaplacian) {
     return NULL; // has to be changed
 }
 
+int converge(double ***A, double ***Atag) {
+    return 1;
+}
+
 /**
  * Gets 2 matrices, and cupy the 1'st to the 2'nd a matrix of size (N * N).
  * @param arraySize - amount of datapoints
@@ -535,8 +552,11 @@ double **calcJacobi(int d, int arraySize, double ***normLaplacian) {
  * TODO if ill copy " symmetric matrix, will that be better ?
  */
 void copymatrix(int arraySize, double ***matrix1, double ***matrix2) {
-    for (int i = 0; i < arraySize; i++) {
-        for (int j = i; j < arraySize; j++) {
+
+    int i,j;
+
+    for (i = 0; i < arraySize; i++) {
+        for (j = i; j < arraySize; j++) {
             (*matrix2)[i][j] = (*matrix1)[i][j];
         }
     }
@@ -578,10 +598,12 @@ void findmatrixP(int arraySize, double ***A, double ***P, int *row, int *col) {
  * @param col - pointer to the col index of the max value in A (off diag), to be calculated
  */
 void findMaxOffDiag(int arraySize, double ***A, int *row, int *col) {
+
+    int i, j;
     double curmax = FLT_MIN;
 
-    for (int i = 0; i < arraySize; i++) {
-        for (int j = i + 1; j < arraySize; j++) {
+    for (i = 0; i < arraySize; i++) {
+        for (j = i + 1; j < arraySize; j++) {
             if ((*A)[i][j] > curmax) {
                 curmax = (*A)[i][j];
                 *row = i;
@@ -601,13 +623,14 @@ void findMaxOffDiag(int arraySize, double ***A, int *row, int *col) {
  */
 void updateAtag(int arraySize, double ***Atag, double ***P, int row, int col) {
 
+    int r;
     double c, s, ri, rj, ij;
     c = (*Atag)[row][row];
     s = (*Atag)[row][col];
 
     /** update each Atag[r,i]/Atag[r,j], for : r != i,j
      * can cut computation in half because the matrix is symmetric */
-    for (int r = 0; r < arraySize; r++) {
+    for (r = 0; r < arraySize; r++) {
         ri = (*Atag)[r][row];
         rj = (*Atag)[r][col];
         if ((r != row) && (r != col)) {
@@ -625,11 +648,13 @@ void updateAtag(int arraySize, double ***Atag, double ***P, int row, int col) {
 }
 
 void updateV(int arraySize, double ***V, double ***P, int row, int col) {
+
+    int r;
     double ri, rj, c, s;
     c = (*P)[row][row];
     s = (*P)[row][col];
 
-    for (int r = 0; r < arraySize; r++) {
+    for (r = 0; r < arraySize; r++) {
         ri = (*V)[r][row];
         rj = (*V)[r][col];
         /** V'[r][row] = (V[r][row] * P[row][row]) + (V[r][col] * P[col][row])
@@ -640,4 +665,8 @@ void updateV(int arraySize, double ***V, double ***P, int row, int col) {
          * V'(r,j) = (V(r,i) * s) + ((V(r,j) * c) */
         (*V)[r][col] = (ri * s) + (rj * c);
     }
+}
+
+double **calcSpectralClusters() {
+    return NULL;
 }
