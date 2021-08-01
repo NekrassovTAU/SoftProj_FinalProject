@@ -81,19 +81,46 @@ double calcOff(int arraySize, double ***matrix);
 double **calcSpectralClusters();
 
 /** small test */
-void printTest(double matrix[3][3]);
+void printTest(double **arr);
 
 /**
  * main, a shell function for the spectral clustering algorithm implementation
  */
 int main(int argc, char *argv[]) {
 //    checkArgs(argc, argv);
+    int i;
+    double **arr, **Atag, **V;
     /*****/
-    double **arr = (double**) calloc(3,)
-    = {{3, 2, 4},
-                        {2, 0, 2},
-                        {4, 2, 3}};
+    arr = (double**) calloc(3,sizeof (double*));
+    Atag = (double**) calloc(3,sizeof (double*));
+    V = (double**) calloc(3,sizeof (double*));
+    for(i = 0; i < 3; i++) {
+        arr[i] =  calloc(3, sizeof(double));
+        Atag[i] =  calloc(3, sizeof(double));
+        V[i] =  calloc(3, sizeof(double));
+        V[i][i] = 1;
+    }
+    arr[0][0] = 3;
+    arr[0][1] = 2;
+    arr[0][2] = 4;
+    arr[1][0] = 2;
+    arr[1][1] = 0;
+    arr[1][2] = 2;
+    arr[2][0] = 4;
+    arr[2][1] = 2;
+    arr[2][2] = 3;
+
     printTest(arr);
+    printf("\n");
+
+    calcJacobi(3, &arr, &Atag, &V);
+
+    printf("\n Values: \n");
+    printTest(Atag);
+    printf("\n Vectors: \n");
+    printTest(V);
+    printf("end");
+
     return 0;
 }
 
@@ -303,7 +330,7 @@ goalBasedProcess(int d, int arraySize, double ***datapoint, enum goalEnum goal,
     free(weightedAdjMatrix);
     free(diagDegMatrix);
     free(normLaplacian);
-    free(jacobiMatrix);
+//    free(jacobiMatrix);
     return spkMatrix;
 }
 
@@ -539,13 +566,14 @@ void calcJacobi(int arraySize, double ***normLaplacian, double ***Atag, double *
 
     /** run until convergence -  */
 
-    copymatrix(arraySize, normLaplacian, Atag);
+    copymatrix(arraySize, normLaplacian, Atag); // Atag = normLaplacian
 
     do {
         copymatrix(arraySize, Atag, &A);                   // A = Atag
         findmatrixP(arraySize, &A, &P, &row, &col);         // P
         updateAtag(arraySize, Atag, &P, row, col);         // A' = P^T * A * P
         updateV(arraySize, V, &P, row, col);               // V *= P
+
     } while (!converge(arraySize, &A, Atag));                         // as long as delta > epsilon
 
     /** Atag has the A"A
@@ -601,8 +629,10 @@ void copymatrix(int arraySize, double ***matrix1, double ***matrix2) {
     int i,j;
 
     for (i = 0; i < arraySize; i++) {
-        for (j = i; j < arraySize; j++) {
+        (*matrix2)[i][i] = (*matrix1)[i][i];
+        for (j = i+1; j < arraySize; j++) {
             (*matrix2)[i][j] = (*matrix1)[i][j];
+            (*matrix2)[j][i] = (*matrix1)[j][i];
         }
     }
 }
@@ -622,12 +652,14 @@ void findmatrixP(int arraySize, double ***A, double ***P, int *row, int *col) {
 
     /** update P values */
     teta = ((*A)[*col][*col] - (*A)[*row][*row]) / (2 * (*A)[*row][*col]);
+
     if (teta >= 0) {
         sign = 1;
     }
     t = sign / (fabs(teta) + sqrt(pow(teta, 2) + 1));
     c = 1 / sqrt(pow(t, 2) + 1);
     s = t * c;
+
     (*P)[*row][*row] = c;
     (*P)[*col][*col] = c;
     (*P)[*row][*col] = s;
@@ -651,8 +683,8 @@ void findMaxOffDiag(int arraySize, double ***A, int *row, int *col) {
         for (j = i + 1; j < arraySize; j++) {
             if ((*A)[i][j] > curmax) {
                 curmax = (*A)[i][j];
-                *row = i;
-                *col = j;
+                (*row) = i;
+                (*col) = j;
             }
         }
     }
@@ -669,9 +701,9 @@ void findMaxOffDiag(int arraySize, double ***A, int *row, int *col) {
 void updateAtag(int arraySize, double ***Atag, double ***P, int row, int col) {
 
     int r;
-    double c, s, ri, rj, ij;
-    c = (*Atag)[row][row];
-    s = (*Atag)[row][col];
+    double c, s, ri, rj, ij, ii, jj;
+    c = (*P)[row][row];
+    s = (*P)[row][col];
 
     /** update each Atag[r,i]/Atag[r,j], for : r != i,j
      * can cut computation in half because the matrix is symmetric */
@@ -679,17 +711,22 @@ void updateAtag(int arraySize, double ***Atag, double ***P, int row, int col) {
         ri = (*Atag)[r][row];
         rj = (*Atag)[r][col];
         if ((r != row) && (r != col)) {
+
             (*Atag)[r][row] = (c * ri) - (s * rj);
+            (*Atag)[row][r] = (*Atag)[r][row];
             (*Atag)[r][col] = (c * rj) + (s * ri);
+            (*Atag)[col][r] = (*Atag)[r][col];
         }
     }
     /**  Atag[i,i] / Atag[j,j]/ Atag[i,j] / Atag[j,i] */
     ij = (*Atag)[row][col];
-    (*Atag)[row][row] = (c * c * (*Atag)[row][row]) + (s * s * (*Atag)[col][col]) - (2 * s * c * ij);
-    (*Atag)[col][col] = (s * s * (*Atag)[row][row]) + (c * c * (*Atag)[col][col]) - (2 *s * c* ij);
+    ii = (*Atag)[row][row];
+    jj = (*Atag)[col][col];
+
+    (*Atag)[row][row] = (c * c * ii) + (s * s * jj) - (2 * s * c * ij);
+    (*Atag)[col][col] = (s * s * ii) + (c * c * jj) + (2 * s * c * ij);
     (*Atag)[row][col] = 0;
     (*Atag)[col][row] = 0;
-
 }
 
 /**
@@ -725,11 +762,11 @@ double **calcSpectralClusters() {
 }
 
 
-void printTest(double matrix[3][3]){
+void printTest(double **matrix){
     int i, j;
     for(i = 0; i < 3; i++){
         for(j = 0; j < 3; j++){
-            printf("%f ", (matrix)[i][j]);
+            printf("%f ", matrix[i][j]);
         }
         printf("\n");
     }
