@@ -10,6 +10,7 @@
 #define FLT_MIN 1.1754943508e-38F
 #define BUFFER_SIZE 1000
 #define INITIAL_ARRAY_SIZE 1000
+#define EPSILON 0.001
 
 #define ASSERT_ARGS(expr) \
     if (!(expr)){             \
@@ -60,7 +61,8 @@ double **calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
 
 double **twoDinitialization(int arraySize, int identity);
 
-double **calcJacobi(int arraySize, double ***normLaplacian);
+//double **calcJacobi(int arraySize, double ***normLaplacian);
+void calcJacobi(int arraySize, double ***normLaplacian, double ***Eigenvalues, double ***Eigenvectors);
 
 void copymatrix(int arraySize, double ***matrix1, double ***matrix2);
 
@@ -72,7 +74,9 @@ void updateAtag(int arraySize, double ***Atag, double ***P, int row, int col);
 
 void updateV(int arraySize, double ***V, double ***P, int row, int col);
 
-int converge(double ***A, double ***Atag);
+int converge(int arraySize, double ***A, double ***Atag);
+
+double calcOff(int arraySize, double ***A);
 
 double **calcSpectralClusters();
 
@@ -259,6 +263,7 @@ goalBasedProcess(int d, int arraySize, double ***datapoint, enum goalEnum goal,
                  int **init_centroids) {
     double **weightedAdjMatrix, **diagDegMatrix, **normLaplacian,
             **jacobiMatrix, **spkMatrix;
+    double **Eigenvalues, **Eigenvectors;
     /** TODO: implement calc functions */
     weightedAdjMatrix = calcWeightedAdjMatrix(d, arraySize, datapoint);
     if (goal == wam) {
@@ -276,7 +281,9 @@ goalBasedProcess(int d, int arraySize, double ***datapoint, enum goalEnum goal,
         free(diagDegMatrix);
         return normLaplacian;
     }
-    jacobiMatrix = calcJacobi(arraySize, &normLaplacian);
+ //   jacobiMatrix = calcJacobi(arraySize, &normLaplacian);
+    /** TODO: calloc for Eigenvalues (the 0 matrix) and Eigenvectors (Identity matrix) */
+    calcJacobi(arraySize, &normLaplacian, &Eigenvalues, &Eigenvectors);
     if (goal == jacobi) {
         free(weightedAdjMatrix);
         free(diagDegMatrix);
@@ -512,16 +519,17 @@ double **twoDinitialization(int arraySize, int identity) {
  * @param normLaplacian - 2-D array
  * @return  ??
  */
-double **calcJacobi(int arraySize, double ***normLaplacian) {
+//double **calcJacobi(int arraySize, double ***normLaplacian) {
+void calcJacobi(int arraySize, double ***normLaplacian, double ***Atag, double ***V) {
     int row, col;
-    double **jacobiMatrix, **A, **Atag, **V, **P;
-
+  //  double **jacobiMatrix, **A, **Atag, **V, **P;
+    double **A, **P;
     /** initialization */
     A = twoDinitialization(arraySize, 0);
-    Atag = twoDinitialization(arraySize, 0);
-    V = twoDinitialization(arraySize, 1);
+    // Atag = twoDinitialization(arraySize, 0);
+    // V = twoDinitialization(arraySize, 1);
     P = twoDinitialization(arraySize, 1);
-    jacobiMatrix = twoDinitialization(arraySize, 0);
+    // jacobiMatrix = twoDinitialization(arraySize, 0);
 
     /** TODO: ASSERT after each line ?  */
 
@@ -529,21 +537,50 @@ double **calcJacobi(int arraySize, double ***normLaplacian) {
     // copymatrix(arraySize, normLaplacian, &curA); // curA = normLaplacian
 
     /** run until convergence -  */
-    copymatrix(arraySize, normLaplacian, &Atag);
+   /* copymatrix(arraySize, normLaplacian, &Atag);
+
     do {
         copymatrix(arraySize, &Atag, &A);                   // A = Atag
-        findmatrixP(arraySize, &A, &P, &row, &col);  // P
+        findmatrixP(arraySize, &A, &P, &row, &col);         // P
         updateAtag(arraySize, &Atag, &P, row, col);         // A' = P^T * A * P
-        updateV(arraySize, &V, &P, row, col);                                // V *= P
-    } while (!converge(&A, &Atag));                            // as long as delta > epsilon
+        updateV(arraySize, &V, &P, row, col);               // V *= P
+    } while (!converge(arraySize, &A, &Atag));                         // as long as delta > epsilon
+*/
 
+    copymatrix(arraySize, normLaplacian, Atag);
+
+    do {
+        copymatrix(arraySize, Atag, &A);                   // A = Atag
+        findmatrixP(arraySize, &A, &P, &row, &col);         // P
+        updateAtag(arraySize, Atag, &P, row, col);         // A' = P^T * A * P
+        updateV(arraySize, V, &P, row, col);               // V *= P
+    } while (!converge(arraySize, &A, Atag));                         // as long as delta > epsilon
+
+    /** Atag has the A"A
+     *  V has the V"A
+     */
     return NULL; // has to be changed
 }
 
-int converge(double ***A, double ***Atag) {
-    return 1;
+int converge(int arraySize, double ***A, double ***Atag) {
+    double offA, offAtag, epsilon = EPSILON;
+    offA = calcOff(arraySize, A);
+    offAtag = calcOff(arraySize, Atag);
+    if((offA - offAtag) <= epsilon ){
+        return 1;
+    }
+    return 0;
 }
 
+double calcOff(int arraySize, ***matrix){
+    double off = 0;
+    for(int i = 0; i < arraySize; i++){
+        for(int j = i+1; j < arraySize; j++){
+            off += (2 * pow((*matrix)[i][j],2));
+        }
+    }
+    return off;
+}
 /**
  * Gets 2 matrices, and cupy the 1'st to the 2'nd a matrix of size (N * N).
  * @param arraySize - amount of datapoints
