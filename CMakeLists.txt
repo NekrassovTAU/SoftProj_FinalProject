@@ -3,4 +3,7 @@ project(SoftProj_Final C)
 
 set(CMAKE_C_STANDARD 90)
 
-add_library(SoftProj_Final spkmeans.c spkmeans.h spkmeansmodule.c)
+add_executable(SoftProj_Final spkmeans.c spkmeans.h spkmeansmodule.c)
+
+
+

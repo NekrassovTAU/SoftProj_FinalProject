@@ -76,15 +76,24 @@ void updateV(int arraySize, double ***V, double ***P, int row, int col);
 
 int converge(int arraySize, double ***A, double ***Atag);
 
-double calcOff(int arraySize, double ***A);
+double calcOff(int arraySize, double ***matrix);
 
 double **calcSpectralClusters();
+
+/** small test */
+void printTest(double matrix[3][3]);
 
 /**
  * main, a shell function for the spectral clustering algorithm implementation
  */
 int main(int argc, char *argv[]) {
-    checkArgs(argc, argv);
+//    checkArgs(argc, argv);
+    /*****/
+    double **arr = (double**) calloc(3,)
+    = {{3, 2, 4},
+                        {2, 0, 2},
+                        {4, 2, 3}};
+    printTest(arr);
     return 0;
 }
 
@@ -262,8 +271,7 @@ double **
 goalBasedProcess(int d, int arraySize, double ***datapoint, enum goalEnum goal,
                  int **init_centroids) {
     double **weightedAdjMatrix, **diagDegMatrix, **normLaplacian,
-            **jacobiMatrix, **spkMatrix;
-    double **Eigenvalues, **Eigenvectors;
+             **spkMatrix, **Eigenvalues, **Eigenvectors;
     /** TODO: implement calc functions */
     weightedAdjMatrix = calcWeightedAdjMatrix(d, arraySize, datapoint);
     if (goal == wam) {
@@ -288,7 +296,7 @@ goalBasedProcess(int d, int arraySize, double ***datapoint, enum goalEnum goal,
         free(weightedAdjMatrix);
         free(diagDegMatrix);
         free(normLaplacian);
-        return jacobiMatrix;
+    //    return jacobiMatrix;
     }
     /** TODO: if Python, we should return to implement K-Means++*/
     spkMatrix = calcSpectralClusters();
@@ -517,35 +525,19 @@ double **twoDinitialization(int arraySize, int identity) {
  * Takes the Lnorm matrix, and  ?? calculate Eigenvalues and Eigenvectors ??
  * @param arraySize - amount of datapoints
  * @param normLaplacian - 2-D array
- * @return  ??
  */
-//double **calcJacobi(int arraySize, double ***normLaplacian) {
+
 void calcJacobi(int arraySize, double ***normLaplacian, double ***Atag, double ***V) {
     int row, col;
-  //  double **jacobiMatrix, **A, **Atag, **V, **P;
+
     double **A, **P;
     /** initialization */
     A = twoDinitialization(arraySize, 0);
-    // Atag = twoDinitialization(arraySize, 0);
-    // V = twoDinitialization(arraySize, 1);
     P = twoDinitialization(arraySize, 1);
-    // jacobiMatrix = twoDinitialization(arraySize, 0);
 
     /** TODO: ASSERT after each line ?  */
 
-    // probably left here by mistake. make sure before you delete it.
-    // copymatrix(arraySize, normLaplacian, &curA); // curA = normLaplacian
-
     /** run until convergence -  */
-   /* copymatrix(arraySize, normLaplacian, &Atag);
-
-    do {
-        copymatrix(arraySize, &Atag, &A);                   // A = Atag
-        findmatrixP(arraySize, &A, &P, &row, &col);         // P
-        updateAtag(arraySize, &Atag, &P, row, col);         // A' = P^T * A * P
-        updateV(arraySize, &V, &P, row, col);               // V *= P
-    } while (!converge(arraySize, &A, &Atag));                         // as long as delta > epsilon
-*/
 
     copymatrix(arraySize, normLaplacian, Atag);
 
@@ -559,28 +551,44 @@ void calcJacobi(int arraySize, double ***normLaplacian, double ***Atag, double *
     /** Atag has the A"A
      *  V has the V"A
      */
-    return NULL; // has to be changed
 }
 
+/**
+ * Check weather the the index of the maximum odd-diag value in A.
+ * @param arraySize - amount of datapoints
+ * @param A - 2-D symmetric array
+ * @param Atag - pointer to the row index of the max value in A (off diag), to be calculated
+ * @return 1 if converges, else 0
+ */
 int converge(int arraySize, double ***A, double ***Atag) {
     double offA, offAtag, epsilon = EPSILON;
     offA = calcOff(arraySize, A);
     offAtag = calcOff(arraySize, Atag);
-    if((offA - offAtag) <= epsilon ){
+
+    if((offA - offAtag) <= epsilon) {
         return 1;
     }
     return 0;
 }
 
-double calcOff(int arraySize, ***matrix){
+/**
+ * Find the sum of squares of all off-diagonal elements of matrix
+ * @param arraySize - amount of datapoints
+ * @param matrix - 2-D symmetric array
+ * @return the calculated sum
+ */
+double calcOff(int arraySize, double ***matrix){
     double off = 0;
-    for(int i = 0; i < arraySize; i++){
-        for(int j = i+1; j < arraySize; j++){
+    int i, j;
+
+    for(i = 0; i < arraySize; i++){
+        for(j = i+1; j < arraySize; j++){
             off += (2 * pow((*matrix)[i][j],2));
         }
     }
     return off;
 }
+
 /**
  * Gets 2 matrices, and cupy the 1'st to the 2'nd a matrix of size (N * N).
  * @param arraySize - amount of datapoints
@@ -684,6 +692,14 @@ void updateAtag(int arraySize, double ***Atag, double ***P, int row, int col) {
 
 }
 
+/**
+ *Calculate the current matrix V, which is the Eigenvectors matrix. V *= P
+ * @param arraySize - amount of datapoints
+ * @param V - 2-D array to be calculated
+ * @patam P -  2-D symmetric array
+ * @param row - row index of the max value in Atag (off diag)
+ * @param col - col index of the max value in Atag (off diag)
+ */
 void updateV(int arraySize, double ***V, double ***P, int row, int col) {
 
     int r;
@@ -706,4 +722,15 @@ void updateV(int arraySize, double ***V, double ***P, int row, int col) {
 
 double **calcSpectralClusters() {
     return NULL;
+}
+
+
+void printTest(double matrix[3][3]){
+    int i, j;
+    for(i = 0; i < 3; i++){
+        for(j = 0; j < 3; j++){
+            printf("%f ", (matrix)[i][j]);
+        }
+        printf("\n");
+    }
 }
