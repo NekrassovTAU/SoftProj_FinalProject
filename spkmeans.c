@@ -8,7 +8,7 @@
 
 #define FLT_MAX 3.402823466e+38F
 #define FLT_MIN 1.1754943508e-38F
-#define BUFFER_SIZE 1000
+#define BUFFER_SIZE 10000
 #define INITIAL_ARRAY_SIZE 1000
 #define EPSILON 0.001
 
@@ -30,39 +30,41 @@ enum goalEnum {
 
 void checkArgs(int argc, char **origArgv);
 
-double **
+double *
 initProcess(int k, int d, int arraySize, enum goalEnum goal,
             double ***datapoint, int **init_centroids, int isCAPI);
 
-double **
-goalBasedProcess(int d, int arraySize, double ***datapoint, enum goalEnum goal,
-                 int **init_centroids);
+double *
+goalBasedProcess(int k, int d, int arraySize, double ***datapoint,
+                 enum goalEnum goal, int **init_centroids);
 
-void printResult(double ***retMatrix, enum goalEnum goal);
+void printResult(double **retArray, enum goalEnum goal);
 
 static enum goalEnum checkGoal(char *string);
 
-static double **makeTwoDimArray(double **array, int n, int m);
+static double **arrayToTwoDimArray(double **array, int n, int m);
 
-int *processInitCentroidFile(char *initCentrFilename);
+static void makeTwoDimArray(double** array, double***matrix, int n, int m);
 
 void processDatapoints(char *filename, double **datap_array, double ***datapoint,
                        int **dArraySizeInfo);
 
 /****************************/
-double **calcWeightedAdjMatrix(int d, int arraySize, double ***datapoint);
+void calcWeightedAdjMatrix(int d, int arraySize, double ***datapoint,
+                             double **weightedAdjArray,
+                             double ***weightedAdjMatrix);
 
 double calcWeight(int d, double ***datapoint, int i, int j);
 
-double **calcDiagDegMatrix(int arraySize, double ***weightedAdjMatrix);
+void calcDiagDegMatrix(int arraySize, double ***weightedAdjMatrix,
+                         double **diagDegArray, double ***diagDegMatrix);
 
-double **calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
-                           double ***diagDegMatrix);
+void calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
+                         double ***diagDegMatrix, double **normLaplacianArray,
+                         double ***normLaplacianMatrix);
 
-double **twoDinitialization(int arraySize, int identity);
-
-double **calcJacobi(int arraySize, double ***normLaplacian);
-//void calcJacobi(int arraySize, double ***normLaplacian, double ***Eigenvalues, double ***Eigenvectors);
+void calcJacobi(int arraySize, double ***inputMatrix, double **jacobiArray,
+                double ***jacobiMatrix);
 
 void copymatrix(int arraySize, double ***matrix1, double ***matrix2);
 
@@ -86,13 +88,15 @@ double **calcSpectralClusters();
 /** small test */
 void printTest(double **arr, int n, int m);
 
+void makeIntoIdentityMatrix(double ***emptyMatrix, int matrixSize);
+
 /**
  * main, a shell function for the spectral clustering algorithm implementation
  */
 int main(int argc, char *argv[]) {
 //    checkArgs(argc, argv);
     int i;
-    double **arr, **Atag, **V, **jacobiMatrix;
+    double **arr, **Atag, **V, **jacobiMatrix, *jacobiArray;
     /*****/
 //    jacobiMatrix = (double**) calloc(4,sizeof (double*));
 
@@ -123,7 +127,7 @@ int main(int argc, char *argv[]) {
 
 
     printf("\n");
-    jacobiMatrix = calcJacobi(3, &arr);
+    calcJacobi(3, &arr, &jacobiArray, &jacobiMatrix);
     printf("\n jacobi Matrix: \n");
     printTest(jacobiMatrix, 4, 3);
  //   printf("\n Values: \n");
@@ -142,7 +146,7 @@ int main(int argc, char *argv[]) {
  * @param origArgv - the arguments passed to main
  */
 void checkArgs(int argc, char **origArgv) {
-    int k, *init_centroids, d, arraySize, *dArraySizeInfo;
+    int k, d, arraySize, *dArraySizeInfo;
     double *datap_array, **datapoint;
     enum goalEnum goal;
     char *ptr;
@@ -159,42 +163,33 @@ void checkArgs(int argc, char **origArgv) {
 
     dArraySizeInfo = calloc(2, sizeof(int));
 
-    /** deals with optional init_centroids argument, process files accordingly
-     * and initialize the process to achieve the provided goal*/
-    if (argc > 4) {
-        init_centroids = processInitCentroidFile(origArgv[3]);
-        processDatapoints(origArgv[4], &datap_array, &datapoint, &dArraySizeInfo);
+    /** process the datapoint file, and return info about their amount (arraySize)
+     * and number of properties (d) */
+    processDatapoints(origArgv[3], &datap_array, &datapoint, &dArraySizeInfo);
 
-        d = dArraySizeInfo[0];
-        arraySize = dArraySizeInfo[1];
-        free(dArraySizeInfo);
+    d = dArraySizeInfo[0];
+    arraySize = dArraySizeInfo[1];
+    free(dArraySizeInfo);
 
-        ASSERT_ARGS(k < arraySize)
+    ASSERT_ARGS(k < arraySize)
 
-        initProcess(k, d, arraySize, goal, &datapoint, &init_centroids, 0);
+    /** initialize the process to achieve the provided goal */
+    initProcess(k, d, arraySize, goal, &datapoint, NULL, 0);
 
-        free(init_centroids);
-    } else {
-        /** if init_centroids is not provided, spk cannot be executed */
-        ASSERT_ARGS(goal != spk)
-        processDatapoints(origArgv[3], &datap_array, &datapoint, &dArraySizeInfo);
-
-        d = dArraySizeInfo[0];
-        arraySize = dArraySizeInfo[1];
-        free(dArraySizeInfo);
-
-        ASSERT_ARGS(k < arraySize)
-
-        initProcess(k, d, arraySize, goal, &datapoint, NULL, 0);
-    }
+    /** Free allocated memory and terminate*/
     free(datapoint);
     free(datap_array);
 }
 
 /**
-* Initializes datapoint-related arrays on a row-by-row basis
-* Mostly copied from HW1
-*/
+ * Initializes datapoint-related arrays on a row-by-row basis
+ * Mostly copied from HW1
+ * @param filename - contains path to datapoints file
+ * @param datap_array - pointer to 1D-support array containing datapoint values
+ * @param datapoint - pointer to 2D array built upon datap_array
+ * @param dArraySizeInfo - array used to return d and arraySize info back to
+ *                         the checkArgs function
+ */
 void processDatapoints(char *filename, double **datap_array, double ***datapoint,
                        int **dArraySizeInfo) {
     char *token, *ptr, currRow[BUFFER_SIZE];
@@ -208,7 +203,7 @@ void processDatapoints(char *filename, double **datap_array, double ***datapoint
     fgets(currRow, BUFFER_SIZE, fptr);
     ASSERT_ERROR(currRow != NULL)
 
-    for (i = 0, d = 0; currRow[i]; i++) {
+    for (i = 0, d = 1; currRow[i]; i++) {
         d += (currRow[i] == ',');
     }
 
@@ -218,7 +213,6 @@ void processDatapoints(char *filename, double **datap_array, double ***datapoint
     ASSERT_ERROR(*datap_array != NULL)
 
     /** Populates datap_array with info from the file */
-    /**TODO: ?Move datap_array population to different method?*/
     do {/* as long as there are still lines to be read */
         /*loop to read line */
         token = strtok(currRow, ","); /* read the current line */
@@ -249,7 +243,7 @@ void processDatapoints(char *filename, double **datap_array, double ***datapoint
 
     free(token);
 
-    *datapoint = makeTwoDimArray(datap_array, arraySize, d);
+    *datapoint = arrayToTwoDimArray(datap_array, arraySize, d);
 
     *dArraySizeInfo[0] = d;
     *dArraySizeInfo[1] = arraySize;
@@ -257,92 +251,115 @@ void processDatapoints(char *filename, double **datap_array, double ***datapoint
 }
 
 /**
- * Read the initial centroid file and creates an int-array with the info in it
- * @param initCentrFilename - path incl. filename containing initial centroid
- * @return int array with initial centroid indexes
- */
-int *processInitCentroidFile(char *initCentrFilename) {
-    return NULL;
-}
-
-/**
  * Initializes datapoints and related arrays. Mostly copied from HW1.
+ * Main function in C-API implementation.
  * @param k - amount of clusters the data needs to divide into.
  *            if 0, need to apply Eigengap Heuristic
+ * @param d - dimension of datapoints
  * @param goal - goal of call to main (spk / wam / ddg / lnorm / jacobi)
- * @param datapoint - path to file with datapoints
- * @param init_centroids - path to file with initial centroids positions.
- *                      used only in C since K-means++ impl. was in Python
+ * @param datapoint - pointer to 2D-array containing all datapoints.
+ *                    In case of goal = 'jacobi', it contains a symmetric
+ *                    nXn matrix
+ * @param init_centroids - pointer to 1D array containing the indices of
+ *                         initial centroids provided by K-Means++ algorithm,
+ *                         relevant only in C-API implementation
  * @param isCAPI - used in order to distinguish between
  *                 C-based and C-API-based call to this function
  */
-double **
+double *
 initProcess(int k, int d, int arraySize, enum goalEnum goal,
             double ***datapoint, int **init_centroids, int isCAPI) {
 
-    double **ret_matrix;
+    double *ret_array;
 
-    ret_matrix = goalBasedProcess(d, arraySize, datapoint, goal,
-                                  init_centroids);
+    ret_array = goalBasedProcess(k, d, arraySize, datapoint, goal,
+                                 init_centroids);
 
     /** Freeing memory and returning/printing the result */
 
     if (!isCAPI) {
-        printResult(&ret_matrix, goal);
-        free(ret_matrix);
+        printResult(&ret_array, goal);
+        free(ret_array);
         return NULL;
     } else {
         /*Will be freed by C-API*/
-        return ret_matrix;
+        return ret_array;
     }
 }
 
 /**
- * Takes the datapoint info, and returns relevant matrix according to the goal.
+ * Takes the datapoint info, and returns relevant 1D support array according to
+ * the goal, later will be converted to matrix form according to needs.
+ * @param k - number of clusters to assign. if 0, we need to use EigGap Heuristic
  * @param d - dimension of datapoints
  * @param arraySize - amount of datapoints
- * @param datapoint - 2D-array containing all datapoints
+ * @param datapoint - pointer to 2D-array containing all datapoints
  * @param goal - the goal of the computation
+ * @param init_centroids - pointer to 1D array containing the indices of
+ *                         initial centroids provided by K-Means++ algorithm,
+ *                         relevant only in C-API implementation
  * @return relevant matrix according to goal
  */
-double **
-goalBasedProcess(int d, int arraySize, double ***datapoint, enum goalEnum goal,
-                 int **init_centroids) {
-    double **weightedAdjMatrix, **diagDegMatrix, **normLaplacian,
-             **spkMatrix, **Eigenvalues, **Eigenvectors, **jacobiMatrix;
-    /** TODO: implement calc functions */
-    weightedAdjMatrix = calcWeightedAdjMatrix(d, arraySize, datapoint);
+double *
+goalBasedProcess(int k, int d, int arraySize, double ***datapoint,
+                 enum goalEnum goal, int **init_centroids) {
+
+    double *weightedAdjArray, **weightedAdjMatrix, *diagDegArray, **diagDegMatrix,
+            *normLaplacianArray, **normLaplacianMatrix, *spkArray,
+             **spkMatrix, *jacobiArray, **jacobiMatrix;
+
+    /**
+     * in case of goal == jacobi, we get a symmetric matrix that we need to
+     * apply the Jacobi algorithm on
+     */
+    if (goal == jacobi){
+        calcJacobi(arraySize, datapoint, &jacobiArray, &jacobiMatrix);
+        free(jacobiMatrix);
+        return jacobiArray; //TODO: NEEDS TO BE THE N+1 X N SUPPORT ARRAY
+    }
+
+    calcWeightedAdjMatrix(d, arraySize, datapoint, &weightedAdjArray,
+                          &weightedAdjMatrix);
     if (goal == wam) {
-        return weightedAdjMatrix;
-    }
-    diagDegMatrix = calcDiagDegMatrix(arraySize, &weightedAdjMatrix);
-    if (goal == ddg) {
         free(weightedAdjMatrix);
-        return diagDegMatrix;
+        return weightedAdjArray;
     }
-    normLaplacian = calcNormLaplacian(arraySize, &weightedAdjMatrix,
+
+    calcDiagDegMatrix(arraySize, &weightedAdjMatrix, &diagDegArray,
                                       &diagDegMatrix);
+    if (goal == ddg) {
+        free(weightedAdjArray);
+        free(weightedAdjMatrix);
+        free(diagDegMatrix);
+        return diagDegArray;
+    }
+
+    calcNormLaplacian(arraySize, &weightedAdjMatrix, &diagDegMatrix,
+                      &normLaplacianArray, &normLaplacianMatrix);
     if (goal == lnorm) {
+        free(weightedAdjArray);
         free(weightedAdjMatrix);
+        free(diagDegArray);
         free(diagDegMatrix);
-        return normLaplacian;
+        free(normLaplacianMatrix);
+        return normLaplacianArray;
     }
-    jacobiMatrix = calcJacobi(arraySize, &normLaplacian);
-    /** TODO: calloc for Eigenvalues (the 0 matrix) and Eigenvectors (Identity matrix) */
-   // calcJacobi(arraySize, &normLaplacian, &Eigenvalues, &Eigenvectors);
-    if (goal == jacobi) {
-        free(weightedAdjMatrix);
-        free(diagDegMatrix);
-        free(normLaplacian);
-        return jacobiMatrix;
-    }
+
+    calcJacobi(arraySize, &normLaplacianMatrix, &jacobiArray, &jacobiMatrix);
+
     /** TODO: if Python, we should return to implement K-Means++*/
     spkMatrix = calcSpectralClusters();
+
+    free(weightedAdjArray);
     free(weightedAdjMatrix);
+    free(diagDegArray);
     free(diagDegMatrix);
-    free(normLaplacian);
+    free(normLaplacianMatrix);
+    free(normLaplacianArray);
     free(jacobiMatrix);
-    return spkMatrix;
+    free(jacobiArray);
+    free(spkMatrix);
+    return spkArray;
 }
 
 /**
@@ -352,10 +369,10 @@ goalBasedProcess(int d, int arraySize, double ***datapoint, enum goalEnum goal,
  *          next are nXn eigenvecor matrix
  * spk - first line is k-means++ init_centroid indices
  *       next are the k centroids after k-means algorithm
- * @param retMatrix - matrix to be printed to user
+ * @param retArray - pointer to matrix to be printed to user
  * @param goal - distinguishes between spk-printing and matrix-printing
  */
-void printResult(double ***retMatrix, enum goalEnum goal) {
+void printResult(double **retArray, enum goalEnum goal) {
     /* TODO: implement function */
 }
 
@@ -386,19 +403,17 @@ static enum goalEnum checkGoal(char *string) {
 /**
  * Takes a n*m-sized array, and coverts it into "matrix" form
  * if allocation fails, returns NULL
- * @param array - a n*m-sized array
+ * @param array - pointer to a n*m-sized array
  * @param n - # of rows
  * @param m - # of columns
  * @return a 2D array referencing this array
  */
-static double **makeTwoDimArray(double **array, int n, int m) {
+static double **arrayToTwoDimArray(double **array, int n, int m) {
     double **twoDimArray;
     int i;
 
     twoDimArray = calloc(n, sizeof(double *));
-    if (twoDimArray == NULL) {
-        return NULL;
-    }
+    ASSERT_ERROR(twoDimArray != NULL)
 
     for (i = 0; i < n; i++) {
         twoDimArray[i] = (*array) + i * m;
@@ -406,37 +421,59 @@ static double **makeTwoDimArray(double **array, int n, int m) {
 
     return twoDimArray;
 }
+/**
+ * Creates a matrix with a supporting 1D array
+ * @param array - pointer to 1D support-array that we want to create of size nXm
+ * @param matrix - pointer to 2D array that functions like matrix, build upon 'array'
+ * @param n - # of rows
+ * @param m - # of cols
+ */
+static void makeTwoDimArray(double** array, double*** matrix, int n, int m){
+    *array = calloc(n*m, sizeof (double ));
+    ASSERT_ERROR(*array != NULL)
+    *matrix = arrayToTwoDimArray(array, n, m);
+}
 
 /**
- * Takes the datapoint info, and returns the weighted adj matrix.
+ * Gets an empty matrix and puts 1 in the diagonal, thus making it
+ * an identity matrix (I)
+ * @param emptyMatrix - a pointer to a new, empty matrix
+ * @param matrixSize - size of given nXn matrix
+ */
+void makeIntoIdentityMatrix(double ***emptyMatrix, int matrixSize) {
+    int i;
+    for (i = 0; i < matrixSize; i++){
+        (*emptyMatrix)[i][i] = 1;
+    }
+}
+
+
+/**
+ * Takes the datapoint info, and updates the weighted adj matrix to match it.
  * @param d - dimension of datapoints
  * @param arraySize - amount of datapoints
- * @param datapoint - 2D-array containing all datapoints
- * @return weighted adj matrix
+ * @param datapoint - pointer to 2D-array containing all datapoints
+ * @param weightedAdjArray - pointer to array that will contain the weight matrix
+ * @param weightedAdjMatrix - pointer to 2D array built upon weightedAdjArray.
  */
-double **calcWeightedAdjMatrix(int d, int arraySize, double ***datapoint) {
+void calcWeightedAdjMatrix(int d, int arraySize, double ***datapoint,
+                             double **weightedAdjArray,
+                             double ***weightedAdjMatrix) {
 
     int i, j;
     double value;
 
     /** creating 2-D array */
-    double **weightedAdjMatrix = calloc(arraySize, sizeof(double *));
-    for (i = 0; i < arraySize; i++) {
-        weightedAdjMatrix[i] = calloc(arraySize, sizeof(double));
-    }
-    /** try this line instead
-    *  double **diagDegMatrix = twoDinitialization(int arraySize, int identity);
-    */
+    makeTwoDimArray(weightedAdjArray, weightedAdjMatrix, arraySize, arraySize);
 
     /** calculating the weights */
     for (i = 0; i < arraySize; i++) {
         for (j = i + 1; j < arraySize; j++) {
             value = calcWeight(d, datapoint, i, j);
-            weightedAdjMatrix[i][j] = value;
-            weightedAdjMatrix[j][i] = value;
+            *weightedAdjMatrix[i][j] = value;
+            *weightedAdjMatrix[j][i] = value;
         }
     }
-    return weightedAdjMatrix;
 }
 
 /**
@@ -462,138 +499,116 @@ double calcWeight(int d, double ***datapoint, int i, int j) {
 }
 
 /**
- * Takes the weightedAdjMatrix, and returns the sum of weights for each point.
+ * Takes the weightedAdjMatrix, and updates the sum of weights for each point
+ * in diagDegMatrix
  * @param arraySize - amount of datapoints
  * @param weightedAdjMatrix - 2-D array containing all the weights
- * @return 2-D array with sum of weights for each point
+ * @param diagDegArray - pointer to 1D support array that will contain diagonal
+ *                       degree matrix data
+ * @param diagDegMatrix - pointer to 2D matrix built upon diagDegArray
  */
-double **calcDiagDegMatrix(int arraySize, double ***weightedAdjMatrix) {
+void calcDiagDegMatrix(int arraySize, double ***weightedAdjMatrix,
+                         double **diagDegArray, double ***diagDegMatrix) {
 
     int i, j;
     double sumofweights;
 
-    double **diagDegMatrix = calloc(arraySize, sizeof(double *));
-    for (i = 0; i < arraySize; i++) {
-        diagDegMatrix[i] = calloc(arraySize, sizeof(double));
-    }
-
-/** try this line instead
- *  double **diagDegMatrix = twoDinitialization(int arraySize, 0);
- */
+    makeTwoDimArray(diagDegArray, diagDegMatrix, arraySize, arraySize);
 
     for (i = 0; i < arraySize; i++) {
         sumofweights = 0;
         for (j = 0; j < arraySize; j++) {
             sumofweights += (*weightedAdjMatrix)[i][j];
         }
-        diagDegMatrix[i][i] = sumofweights;
+        (*diagDegMatrix)[i][i] = sumofweights;
     }
-
-    return diagDegMatrix;
 }
 
 /**
- * Takes the weighted and the diagonal matrices  info, and returns the normLaplacian matrix.
+ * Takes the weighted and the diagonal matrices info,
+ * and updates the normLaplacian matrix.
  * @param arraySize - amount of datapoints
- * @param weightedAdjMatrix - 2-D array containing all the weights
- * @param diagDegMatrix - 2-D array containing the sum of weights for each datapoint
- * @return NormLaplacian matrix
+ * @param weightedAdjMatrix - pointer to 2-D array containing all the weights
+ * @param diagDegMatrix - pointer to 2-D array containing the weights sum
+ *                        for each datapoint
+ * @param normLaplacianArray - pointer to 1D support array that will contain the
+ *                             matrix data
+ * @param normLaplacianMatrix - pointer to 2D matrix built upon normLaplacianArray
  */
-double **calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
-                           double ***diagDegMatrix) {
+void calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
+                         double ***diagDegMatrix, double **normLaplacianArray,
+                         double ***normLaplacianMatrix) {
 
     int i, j;
-    double value, *sqrtDegMatrix, **normLaplacian;
+    double value, *sqrtDegMatrix;
 
-    normLaplacian = twoDinitialization(arraySize, 0);
+    makeTwoDimArray(normLaplacianArray, normLaplacianMatrix, arraySize, arraySize);
 
     /** 1-D array represents sqrt of diagDegMatrix */
     sqrtDegMatrix = calloc(arraySize, sizeof(double));
-    ASSERT_ERROR(sqrtDegMatrix)
+    ASSERT_ERROR(sqrtDegMatrix != NULL)
 
     for (i = 0; i < arraySize; i++) {
         sqrtDegMatrix[i] = 1 / sqrt((*diagDegMatrix)[i][i]);
     }
 
-    /**  sqrtDegMatrix[i][j] = sqrtDeg[i] * weight[i][j] * sqrtDeg[j] = sqrtDegMatrix[j][i]
-     * convince your self its true ;)   */
+    /**  sqrtDegMatrix[i][j] == sqrtDeg[i] * weight[i][j] * sqrtDeg[j]
+     *                       == sqrtDegMatrix[j][i]
+     * convince yourself it's true :) */
 
     for (i = 0; i < arraySize; i++) {
-        normLaplacian[i][i] = 1;
+        (*normLaplacianMatrix)[i][i] = 1;
         for (j = i + 1; j < arraySize; j++) {
             value = -(sqrtDegMatrix[i] * (*weightedAdjMatrix)[i][j] * sqrtDegMatrix[j]);
-            normLaplacian[i][j] = value;
-            normLaplacian[j][i] = value;
+            (*normLaplacianMatrix)[i][j] = value;
+            (*normLaplacianMatrix)[j][i] = value;
         }
     }
 
     free(sqrtDegMatrix);
-    sqrtDegMatrix = NULL;
-    return normLaplacian;
 }
 
 /**
- * Gets size (N), and returns a matrix of size (N * N).
- * @param arraySize - amount of datapoints
- * @param identity - if identity = 1, initialize identity matrix. else, initialize matrix of '0'
- * @return 2-D initialized array
- */
-double **twoDinitialization(int arraySize, int identity) {
-
-    int i;
-
-    double **array = calloc(arraySize, sizeof(double *));
-    /** TODO: ASSERT */
-    if (identity == 1) {
-        for (i = 0; i < arraySize; i++) {
-            array[i] = calloc(arraySize, sizeof(double));
-            /** TODO: ASSERT */
-            array[i][i] = 1;
-        }
-    } else {
-        for (i = 0; i < arraySize; i++) {
-            array[i] = calloc(arraySize, sizeof(double));
-            /** TODO: ASSERT */
-        }
-    }
-    return array;
-}
-
-/**
- * Takes the Lnorm matrix, and  ?? calculate Eigenvalues and Eigenvectors ??
- * @param arraySize - amount of datapoints
- * @param normLaplacian - 2-D array
+ * Takes a matrix and updates the result of the Jacobi algorithm in jacobiMatrix
+ * @param arraySize - size of the nXn matrix
+ * @param inputMatrix - pointer to 2D array representation of input matrix
+ * @param jacobiArray - pointer to 1D support array that will contain
+ *                      the result of the Jacobi algorithm
+ * @param jacobiMatrix - pointer to 2D NXN matrix built upon jacobiArray
  */
 
-double **calcJacobi(int arraySize, double ***normLaplacian) {
+void calcJacobi(int arraySize, double ***inputMatrix, double **jacobiArray,
+                double ***jacobiMatrix) {
 
     int row, col;
 
-    double **A, **P, **Atag, **V, **jacobiMatrix;
-    /** initialization */
+    double *A_array, **A_matrix, *P_array, **P_matrix,
+            *Atag_array, **Atag_matrix, *V_array, **V_matrix;
 
-    A = twoDinitialization(arraySize, 0);
-    P = twoDinitialization(arraySize, 1);
-    Atag = twoDinitialization(arraySize, 0);
-    V = twoDinitialization(arraySize, 1);
-    /** TODO: ASSERT after each line ?  */
+    /** initialization */
+    makeTwoDimArray(&A_array, &A_matrix, arraySize, arraySize);
+    makeTwoDimArray(&P_array, &P_matrix, arraySize, arraySize);
+    makeTwoDimArray(&Atag_array, &Atag_matrix, arraySize, arraySize);
+    makeTwoDimArray(&V_array, &V_matrix, arraySize, arraySize);
+
+    makeIntoIdentityMatrix(&P_matrix, arraySize);
+    makeIntoIdentityMatrix(&V_matrix, arraySize);
 
     /** run until convergence -  */
-    copymatrix(arraySize, normLaplacian, &Atag); // Atag = normLaplacian
+    copymatrix(arraySize, inputMatrix, &Atag_matrix); // Atag_matrix = inputMatrix
 
     do {
-        copymatrix(arraySize, &Atag, &A);                   // A = Atag
-        findmatrixP(arraySize, &A, &P, &row, &col);        // P
-        updateAtag(arraySize, &Atag, &P, row, col);         // A' = P^T * A * P
-        updateV(arraySize, &V, &P, row, col);               // V *= P
+        copymatrix(arraySize, &Atag_matrix, &A_matrix);                   // A_matrix = Atag_matrix
+        findmatrixP(arraySize, &A_matrix, &P_matrix, &row, &col);        // P_matrix
+        updateAtag(arraySize, &Atag_matrix, &P_matrix, row, col);         // A_matrix' = P_matrix^T * A_matrix * P_matrix
+        updateV(arraySize, &V_matrix, &P_matrix, row, col);               // V_matrix *= P_matrix
 
-    } while (!converge(arraySize, &A, &Atag));              // as long as delta > epsilon
+    } while (!converge(arraySize, &A_matrix, &Atag_matrix));              // as long as delta > epsilon
 
-    /** Atag has the A"A
- *  V has the V"A */
+    /** Atag_matrix has the A_matrix"A_matrix
+ *  V_matrix has the V_matrix"A_matrix */
 
-    jacobiMatrix = copyJacoby(arraySize, &Atag, &V);
-    return jacobiMatrix;
+    *jacobiMatrix = copyJacoby(arraySize, &Atag_matrix, &V_matrix);
 }
 
 double **copyJacoby(int arraySize, double ***Atag, double ***V) {
@@ -673,7 +688,6 @@ int converge(int arraySize, double ***A, double ***Atag) {
 double calcOff(int arraySize, double ***matrix){
     double off = 0;
     int i, j;
-
     for(i = 0; i < arraySize; i++){
         for(j = i+1; j < arraySize; j++){
             off += (2 * pow((*matrix)[i][j],2));
