@@ -61,8 +61,8 @@ double **calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
 
 double **twoDinitialization(int arraySize, int identity);
 
-//double **calcJacobi(int arraySize, double ***normLaplacian);
-void calcJacobi(int arraySize, double ***normLaplacian, double ***Eigenvalues, double ***Eigenvectors);
+double **calcJacobi(int arraySize, double ***normLaplacian);
+//void calcJacobi(int arraySize, double ***normLaplacian, double ***Eigenvalues, double ***Eigenvectors);
 
 void copymatrix(int arraySize, double ***matrix1, double ***matrix2);
 
@@ -78,10 +78,13 @@ int converge(int arraySize, double ***A, double ***Atag);
 
 double calcOff(int arraySize, double ***matrix);
 
+double** copyJacoby(int arraySize, double ***Atag, double ***V);
+
+
 double **calcSpectralClusters();
 
 /** small test */
-void printTest(double **arr);
+void printTest(double **arr, int n, int m);
 
 /**
  * main, a shell function for the spectral clustering algorithm implementation
@@ -89,17 +92,23 @@ void printTest(double **arr);
 int main(int argc, char *argv[]) {
 //    checkArgs(argc, argv);
     int i;
-    double **arr, **Atag, **V;
+    double **arr, **Atag, **V, **jacobiMatrix;
     /*****/
+//    jacobiMatrix = (double**) calloc(4,sizeof (double*));
+
+
     arr = (double**) calloc(3,sizeof (double*));
-    Atag = (double**) calloc(3,sizeof (double*));
-    V = (double**) calloc(3,sizeof (double*));
+   // Atag = (double**) calloc(3,sizeof (double*));
+   // V = (double**) calloc(3,sizeof (double*));
     for(i = 0; i < 3; i++) {
         arr[i] =  calloc(3, sizeof(double));
-        Atag[i] =  calloc(3, sizeof(double));
-        V[i] =  calloc(3, sizeof(double));
-        V[i][i] = 1;
+     //   Atag[i] =  calloc(3, sizeof(double));
+       // V[i] =  calloc(3, sizeof(double));
+        //V[i][i] = 1;
     }
+ //   for(i = 0; i < 4; i++) {
+ //       jacobiMatrix[i] = calloc(3, sizeof(double));
+  //  }
     arr[0][0] = 3;
     arr[0][1] = 2;
     arr[0][2] = 4;
@@ -110,16 +119,18 @@ int main(int argc, char *argv[]) {
     arr[2][1] = 2;
     arr[2][2] = 3;
 
-    printTest(arr);
+    printTest(arr, 3, 3);
+
+
     printf("\n");
-
-    calcJacobi(3, &arr, &Atag, &V);
-
-    printf("\n Values: \n");
-    printTest(Atag);
-    printf("\n Vectors: \n");
-    printTest(V);
-    printf("end");
+    jacobiMatrix = calcJacobi(3, &arr);
+    printf("\n jacobi Matrix: \n");
+    printTest(jacobiMatrix, 4, 3);
+ //   printf("\n Values: \n");
+  //  printTest(Atag);
+   // printf("\n Vectors: \n");
+   // printTest(V);
+    //printf("end");
 
     return 0;
 }
@@ -298,7 +309,7 @@ double **
 goalBasedProcess(int d, int arraySize, double ***datapoint, enum goalEnum goal,
                  int **init_centroids) {
     double **weightedAdjMatrix, **diagDegMatrix, **normLaplacian,
-             **spkMatrix, **Eigenvalues, **Eigenvectors;
+             **spkMatrix, **Eigenvalues, **Eigenvectors, **jacobiMatrix;
     /** TODO: implement calc functions */
     weightedAdjMatrix = calcWeightedAdjMatrix(d, arraySize, datapoint);
     if (goal == wam) {
@@ -316,21 +327,21 @@ goalBasedProcess(int d, int arraySize, double ***datapoint, enum goalEnum goal,
         free(diagDegMatrix);
         return normLaplacian;
     }
- //   jacobiMatrix = calcJacobi(arraySize, &normLaplacian);
+    jacobiMatrix = calcJacobi(arraySize, &normLaplacian);
     /** TODO: calloc for Eigenvalues (the 0 matrix) and Eigenvectors (Identity matrix) */
-    calcJacobi(arraySize, &normLaplacian, &Eigenvalues, &Eigenvectors);
+   // calcJacobi(arraySize, &normLaplacian, &Eigenvalues, &Eigenvectors);
     if (goal == jacobi) {
         free(weightedAdjMatrix);
         free(diagDegMatrix);
         free(normLaplacian);
-    //    return jacobiMatrix;
+        return jacobiMatrix;
     }
     /** TODO: if Python, we should return to implement K-Means++*/
     spkMatrix = calcSpectralClusters();
     free(weightedAdjMatrix);
     free(diagDegMatrix);
     free(normLaplacian);
-//    free(jacobiMatrix);
+    free(jacobiMatrix);
     return spkMatrix;
 }
 
@@ -554,32 +565,86 @@ double **twoDinitialization(int arraySize, int identity) {
  * @param normLaplacian - 2-D array
  */
 
-void calcJacobi(int arraySize, double ***normLaplacian, double ***Atag, double ***V) {
+double **calcJacobi(int arraySize, double ***normLaplacian) {
+
     int row, col;
 
-    double **A, **P;
+    double **A, **P, **Atag, **V, **jacobiMatrix;
     /** initialization */
+
     A = twoDinitialization(arraySize, 0);
     P = twoDinitialization(arraySize, 1);
-
+    Atag = twoDinitialization(arraySize, 0);
+    V = twoDinitialization(arraySize, 1);
     /** TODO: ASSERT after each line ?  */
 
     /** run until convergence -  */
+    copymatrix(arraySize, normLaplacian, &Atag); // Atag = normLaplacian
 
+    do {
+        copymatrix(arraySize, &Atag, &A);                   // A = Atag
+        findmatrixP(arraySize, &A, &P, &row, &col);        // P
+        updateAtag(arraySize, &Atag, &P, row, col);         // A' = P^T * A * P
+        updateV(arraySize, &V, &P, row, col);               // V *= P
+
+    } while (!converge(arraySize, &A, &Atag));              // as long as delta > epsilon
+
+    /** Atag has the A"A
+ *  V has the V"A */
+
+    jacobiMatrix = copyJacoby(arraySize, &Atag, &V);
+    return jacobiMatrix;
+}
+
+double **copyJacoby(int arraySize, double ***Atag, double ***V) {
+    int i, j;
+    /** TODO: replace with the new method */
+    double **jacobiMatrix = (double **) calloc(arraySize + 1, sizeof (double *));
+    for(i = 0; i < arraySize + 1; i++){
+        jacobiMatrix[i] = (double *) calloc(arraySize, sizeof (double));
+    }
+
+    for(j = 0; j < arraySize; j++) {// copy the EigenValues
+        jacobiMatrix[0][j] = (*Atag)[j][j];
+    }
+
+    for(i = 1; i < arraySize + 1; i++) { // copy the EigenVectors
+        for(j = 0; j < arraySize; j++){
+            jacobiMatrix[i][j] = (*V)[i-1][j];
+        }
+    }
+
+    return jacobiMatrix;
+}
+
+
+/*void calcJacobi(int arraySize, double ***normLaplacian, double ***Atag, double ***V) {
+    int row, col;
+
+    double **A, **P;
+  */  /** initialization */
+    /* A = twoDinitialization(arraySize, 0);
+    P = twoDinitialization(arraySize, 1);
+*/
+    /** TODO: ASSERT after each line ?  */
+
+    /** run until convergence -  */
+/*
     copymatrix(arraySize, normLaplacian, Atag); // Atag = normLaplacian
 
     do {
         copymatrix(arraySize, Atag, &A);                   // A = Atag
-        findmatrixP(arraySize, &A, &P, &row, &col);         // P
+        findmatrixP(arraySize, &A, &P, &row, &col);        // P
         updateAtag(arraySize, Atag, &P, row, col);         // A' = P^T * A * P
         updateV(arraySize, V, &P, row, col);               // V *= P
 
-    } while (!converge(arraySize, &A, Atag));                         // as long as delta > epsilon
+    } while (!converge(arraySize, &A, Atag));              // as long as delta > epsilon
 
     /** Atag has the A"A
      *  V has the V"A
      */
-}
+//}
+
 
 /**
  * Check weather the the index of the maximum odd-diag value in A.
@@ -762,10 +827,10 @@ double **calcSpectralClusters() {
 }
 
 
-void printTest(double **matrix){
+void printTest(double **matrix, int n, int m){
     int i, j;
-    for(i = 0; i < 3; i++){
-        for(j = 0; j < 3; j++){
+    for(i = 0; i < n; i++){
+        for(j = 0; j < m; j++){
             printf("%f ", matrix[i][j]);
         }
         printf("\n");
