@@ -24,76 +24,11 @@
          exit(0);\
     }
 
-enum goalEnum {
-    spk, wam, ddg, lnorm, jacobi, INVALID
-};
-
-void checkArgs(int argc, char **origArgv);
-
-double **
-initProcess(int k, int d, int arraySize, enum goalEnum goal,
-            double ***datapoint, int **init_centroids, int isCAPI);
-
-double **
-goalBasedProcess(int k, int d, int arraySize, double ***datapoint,
-                 enum goalEnum goal, int **init_centroids, int isCAPI);
-
-void printResult(double ***retArray, enum goalEnum goal);
-
-static enum goalEnum checkGoal(char *string);
-
-static double **arrayToTwoDimArray(double **array, int n, int m);
-
-static double ** createMatrix(int n, int m);
-
-void processDatapoints(char *filename, double **datap_array, double ***datapoint,
-                       int **dArraySizeInfo);
-
-/****************************/
-double ** calcWeightedAdjMatrix(int d, int arraySize, double ***datapoint);
-
-double calcWeight(int d, double ***datapoint, int i, int j);
-
-double ** calcDiagDegMatrix(int arraySize, double ***weightedAdjMatrix);
-
-double ** calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
-                            double ***diagDegMatrix);
-
-double ** calcJacobi(int arraySize, double ***inputMatrix);
-
-void copymatrix(int arraySize, double ***matrix1, double ***matrix2);
-
-void findmatrixP(int arraySize, double ***A, double *c, double *s, int *row, int *col);
-
-void findMaxOffDiag(int arraySize, double ***A, int *row, int *col);
-
-void updateAtag(int arraySize, double ***Atag, double ***A, double c, double s, int row, int col);
-
-void updateV(int arraySize, double ***V, double c, double s, int row, int col);
-
-int convergenceCheck(int arraySize, double ***A, double ***Atag);
-
-double calcOff(int arraySize, double ***matrix);
-
-double** copyJacoby(int arraySize, double ***Atag, double ***V);
-
-
-double **
-calcSpectralClusters(int k, int arraySize, int **init_centroids, int isCAPI,
-                     double ***jacobiMatrix);
-
-/** small test */
-void printTest(double **matrix, int n, int m);
-
-void makeIntoIdentityMatrix(double ***emptyMatrix, int matrixSize);
-
-void freeMatrix(double ***matrix);
-
 /**
  * main, a shell function for the spectral clustering algorithm implementation
  */
 int main(int argc, char *argv[]) {
-//    checkArgs(argc, argv);
+//    checkArgs(argc, argv, 0);
     int i;
     double **arr, **Atag, **V, **jacobiMatrix, *jacobiArray;
     /*****/
@@ -143,12 +78,16 @@ int main(int argc, char *argv[]) {
  * and starts the implementation of spectral k-means clustering
  * @param argc - # of arguments passed to main
  * @param origArgv - the arguments passed to main
+ * @param isCAPI - used in order to distinguish between
+ *                 C-based and C-API-based call to this function
  */
-void checkArgs(int argc, char **origArgv) {
+double **checkArgs(int argc, char **origArgv, int isCAPI, int *returnRowCount,
+                   int *returnColCount) {
     int k, d, arraySize, *dArraySizeInfo;
-    double *datap_array, **datapoint;
+    double *datap_array, **datapoint, **ret_matrix;
     enum goalEnum goal;
     char *ptr;
+
     ASSERT_ARGS(argc > 3)
 
     k = strtol(origArgv[1], &ptr, 10);
@@ -173,11 +112,32 @@ void checkArgs(int argc, char **origArgv) {
     ASSERT_ARGS(k < arraySize)
 
     /** initialize the process to achieve the provided goal */
-    initProcess(k, d, arraySize, goal, &datapoint, NULL, 0);
+    ret_matrix = initProcess(&k, d, arraySize, goal, &datapoint, isCAPI);
+
+    /** Determining row and col size for return matrix */
+    switch (goal) {
+        case jacobi:{
+            *returnRowCount = arraySize + 1;
+            *returnColCount = arraySize;
+            break;
+        }
+        case spk:{
+            *returnRowCount = arraySize;
+            *returnColCount = k;
+            break;
+        }
+        default:{
+            *returnRowCount = arraySize;
+            *returnColCount = arraySize;
+            break;
+        }
+    }
 
     /** Free allocated memory and terminate*/
     free(datapoint);
     free(datap_array);
+
+    return ret_matrix;
 }
 
 /**
@@ -252,7 +212,7 @@ void processDatapoints(char *filename, double **datap_array, double ***datapoint
 /**
  * Initializes datapoints and related arrays. Mostly copied from HW1.
  * Main function in C-API implementation.
- * @param k - amount of clusters the data needs to divide into.
+ * @param k - pointer to amount of clusters the data needs to divide into.
  *            if 0, need to apply Eigengap Heuristic
  * @param d - dimension of datapoints
  * @param goal - goal of call to main (spk / wam / ddg / lnorm / jacobi)
@@ -266,13 +226,12 @@ void processDatapoints(char *filename, double **datap_array, double ***datapoint
  *                 C-based and C-API-based call to this function
  */
 double **
-initProcess(int k, int d, int arraySize, enum goalEnum goal,
-            double ***datapoint, int **init_centroids, int isCAPI) {
+initProcess(int *k, int d, int arraySize, enum goalEnum goal,
+            double ***datapoint, int isCAPI) {
 
     double **ret_matrix;
 
-    ret_matrix = goalBasedProcess(k, d, arraySize, datapoint, goal,
-                                  init_centroids, isCAPI);
+    ret_matrix = goalBasedProcess(k, d, arraySize, datapoint, goal, isCAPI);
 
     /** Freeing memory and returning/printing the result */
 
@@ -300,8 +259,8 @@ initProcess(int k, int d, int arraySize, enum goalEnum goal,
  * @return relevant matrix according to goal
  */
 double **
-goalBasedProcess(int k, int d, int arraySize, double ***datapoint,
-                 enum goalEnum goal, int **init_centroids, int isCAPI) {
+goalBasedProcess(int *k, int d, int arraySize, double ***datapoint,
+                 enum goalEnum goal, int isCAPI) {
 
     double **weightedAdjMatrix, **diagDegMatrix,
             **normLaplacianMatrix, **spkMatrix, **jacobiMatrix;
@@ -337,7 +296,7 @@ goalBasedProcess(int k, int d, int arraySize, double ***datapoint,
     jacobiMatrix = calcJacobi(arraySize, &normLaplacianMatrix);
 
     /** TODO: if Python, we should return to implement K-Means++*/
-    spkMatrix = calcSpectralClusters(k, arraySize, init_centroids, 0, NULL);
+    spkMatrix = calcSpectralClusters(k, arraySize, 0, &jacobiMatrix);
 
     freeMatrix(&weightedAdjMatrix);
     freeMatrix(&diagDegMatrix);
@@ -564,7 +523,7 @@ double ** calcJacobi(int arraySize, double ***inputMatrix) {
 
     int row, col, converge;
     double c, s;
-    double **A, **P, **Atag, **V, **jacobiMatrix;
+    double **A, **Atag, **V, **jacobiMatrix;
 
     /** initialization */
     Atag = createMatrix(arraySize, arraySize);
@@ -593,6 +552,10 @@ double ** calcJacobi(int arraySize, double ***inputMatrix) {
  *  V has the V"A */
 
     jacobiMatrix = copyJacoby(arraySize, &Atag, &V);
+
+    freeMatrix(&Atag);
+    freeMatrix(&V);
+
     return jacobiMatrix;
 }
 
@@ -604,7 +567,7 @@ double ** calcJacobi(int arraySize, double ***inputMatrix) {
 
     double **A, **P, **Atag, **V, **jacobiMatrix;
 
-    /** initialization
+    ** initialization
     P = createMatrix(arraySize, arraySize);
     Atag = createMatrix(arraySize, arraySize);
     V = createMatrix(arraySize, arraySize);
@@ -612,7 +575,7 @@ double ** calcJacobi(int arraySize, double ***inputMatrix) {
     makeIntoIdentityMatrix(&P, arraySize);
     makeIntoIdentityMatrix(&V, arraySize);
 
-    /** run until convergence -
+    ** run until convergence -
 
     A = (*inputMatrix);
 
@@ -629,7 +592,7 @@ double ** calcJacobi(int arraySize, double ***inputMatrix) {
 
  //
 
-    /** Atag has the A"A
+    ** Atag has the A"A
  *  V has the V"A
 
     jacobiMatrix = copyJacoby(arraySize, &Atag, &V);
@@ -821,19 +784,21 @@ void updateV(int arraySize, double ***V, double c, double s, int row, int col) {
 }
 
 double **
-calcSpectralClusters(int k, int arraySize, int **init_centroids, int isCAPI,
+calcSpectralClusters(int *k, int arraySize, int isCAPI,
                      double ***jacobiMatrix) {
 
     double **U, **spkMatrix;
 
     //TODO: sort jacobi
 
-    //TODO: determine k (if k==0)
+    //TODO: determine k (if k==0) AND change k variable accordingly, important for CAPI
 
     //TODO: get k first eigenvectors from jacobi into U, normalize U
 
     //TODO: K-Means algorithm - if CAPI - need to return to python for K-Means++
     //TODO:                             - need to get back result from python
+    //TODO: Need to cut off function when returning to python, then start new
+    //TODO: method with KMeans implementation and finito
 
     //TODO: free memory and finish
 

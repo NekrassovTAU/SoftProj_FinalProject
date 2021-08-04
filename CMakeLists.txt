@@ -3,7 +3,7 @@ project(SoftProj_Final C)
 
 set(CMAKE_C_STANDARD 90)
 
-
+find_package(PythonLibs REQUIRED)
 include_directories(${PYTHON_INCLUDE_DIRS})
 
 add_executable(SoftProj_Final spkmeans.c )
