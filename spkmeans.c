@@ -63,15 +63,15 @@ double ** calcJacobi(int arraySize, double ***inputMatrix);
 
 void copymatrix(int arraySize, double ***matrix1, double ***matrix2);
 
-void findmatrixP(int arraySize, double ***A, double ***P, int *row, int *col);
+void findmatrixP(int arraySize, double ***A, double *c, double *s, int *row, int *col);
 
 void findMaxOffDiag(int arraySize, double ***A, int *row, int *col);
 
-void updateAtag(int arraySize, double ***Atag, double ***P, int row, int col);
+void updateAtag(int arraySize, double ***Atag, double ***A, double c, double s, int row, int col);
 
-void updateV(int arraySize, double ***V, double ***P, int row, int col);
+void updateV(int arraySize, double ***V, double c, double s, int row, int col);
 
-int converge(int arraySize, double ***A, double ***Atag);
+int convergenceCheck(int arraySize, double ***A, double ***Atag);
 
 double calcOff(int arraySize, double ***matrix);
 
@@ -126,9 +126,9 @@ int main(int argc, char *argv[]) {
 
 
     printf("\n");
-    calcJacobi(3, &arr);
+    jacobiMatrix = calcJacobi(3, &arr);
     printf("\n jacobi Matrix: \n");
-   // printTest(jacobiMatrix, 4, 3);
+    printTest(jacobiMatrix, 4, 3);
  //   printf("\n Values: \n");
   //  printTest(Atag);
    // printf("\n Vectors: \n");
@@ -560,32 +560,34 @@ double ** calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
  * @param arraySize - size of the nXn matrix
  * @param inputMatrix - pointer to 2D array representation of input matrix
  */
-
 double ** calcJacobi(int arraySize, double ***inputMatrix) {
 
-    int row, col;
-
+    int row, col, converge;
+    double c, s;
     double **A, **P, **Atag, **V, **jacobiMatrix;
 
     /** initialization */
-    A = createMatrix(arraySize, arraySize);
-    P = createMatrix(arraySize, arraySize);
     Atag = createMatrix(arraySize, arraySize);
     V = createMatrix(arraySize, arraySize);
 
-    makeIntoIdentityMatrix(&P, arraySize);
     makeIntoIdentityMatrix(&V, arraySize);
 
     /** run until convergence -  */
-    copymatrix(arraySize, inputMatrix, &Atag); // Atag = inputMatrix
+
+    A = (*inputMatrix);
 
     do {
-        copymatrix(arraySize, &Atag, &A);                   // A = Atag
-        findmatrixP(arraySize, &A, &P, &row, &col);        // P
-        updateAtag(arraySize, &Atag, &P, row, col);         // A' = P^T * A * P
-        updateV(arraySize, &V, &P, row, col);               // V *= P
+        findmatrixP(arraySize, &A, &c, &s, &row, &col);         // P
+        updateAtag(arraySize, &Atag, &A, c, s, row, col);         // A' = P^T * A * P
+        updateV(arraySize, &V, c, s, row, col);               // V *= P
+        converge = convergenceCheck(arraySize, &A, &Atag);
 
-    } while (!converge(arraySize, &A, &Atag));              // as long as delta > epsilon
+        if(!converge) {
+            copymatrix(arraySize, &Atag, &A);                // A = Atag
+        }
+    } while (!converge);              // as long as delta > epsilon
+
+    //
 
     /** Atag has the A"A
  *  V has the V"A */
@@ -593,6 +595,48 @@ double ** calcJacobi(int arraySize, double ***inputMatrix) {
     jacobiMatrix = copyJacoby(arraySize, &Atag, &V);
     return jacobiMatrix;
 }
+
+
+/*
+double ** calcJacobi(int arraySize, double ***inputMatrix) {
+
+    int row, col, c, s, converge;
+
+    double **A, **P, **Atag, **V, **jacobiMatrix;
+
+    /** initialization
+    P = createMatrix(arraySize, arraySize);
+    Atag = createMatrix(arraySize, arraySize);
+    V = createMatrix(arraySize, arraySize);
+
+    makeIntoIdentityMatrix(&P, arraySize);
+    makeIntoIdentityMatrix(&V, arraySize);
+
+    /** run until convergence -
+
+    A = (*inputMatrix);
+
+    do {
+        findmatrixP(arraySize, &A, &P, &row, &col);         // P
+        updateAtag(arraySize, &Atag, &A, &P, row, col);         // A' = P^T * A * P
+        updateV(arraySize, &V, &P, row, col);               // V *= P
+        converge = convergenceCheck(arraySize, &A, &Atag);
+
+        if(!converge) {
+            copymatrix(arraySize, &Atag, &A);                // A = Atag
+        }
+    } while (!converge);              // as long as delta > epsilon
+
+ //
+
+    /** Atag has the A"A
+ *  V has the V"A
+
+    jacobiMatrix = copyJacoby(arraySize, &Atag, &V);
+    return jacobiMatrix;
+}
+*/
+
 
 double **copyJacoby(int arraySize, double ***Atag, double ***V) {
     int i, j;
@@ -614,34 +658,6 @@ double **copyJacoby(int arraySize, double ***Atag, double ***V) {
 }
 
 
-/*void calcJacobi(int arraySize, double ***normLaplacian, double ***Atag, double ***V) {
-    int row, col;
-
-    double **A, **P;
-  */  /** initialization */
-    /* A = twoDinitialization(arraySize, 0);
-    P = twoDinitialization(arraySize, 1);
-*/
-    /** TODO: ASSERT after each line ?  */
-
-    /** run until convergence -  */
-/*
-    copymatrix(arraySize, normLaplacian, Atag); // Atag = normLaplacian
-
-    do {
-        copymatrix(arraySize, Atag, &A);                   // A = Atag
-        findmatrixP(arraySize, &A, &P, &row, &col);        // P
-        updateAtag(arraySize, Atag, &P, row, col);         // A' = P^T * A * P
-        updateV(arraySize, V, &P, row, col);               // V *= P
-
-    } while (!converge(arraySize, &A, Atag));              // as long as delta > epsilon
-
-    ** Atag has the A"A
-     *  V has the V"A
-     */
-//}
-
-
 /**
  * Check weather the the index of the maximum odd-diag value in A.
  * @param arraySize - amount of datapoints
@@ -649,15 +665,12 @@ double **copyJacoby(int arraySize, double ***Atag, double ***V) {
  * @param Atag - pointer to the row index of the max value in A (off diag), to be calculated
  * @return 1 if converges, else 0
  */
-int converge(int arraySize, double ***A, double ***Atag) {
+int convergenceCheck(int arraySize, double ***A, double ***Atag) {
     double offA, offAtag, epsilon = EPSILON;
     offA = calcOff(arraySize, A);
     offAtag = calcOff(arraySize, Atag);
 
-    if((offA - offAtag) <= epsilon) {
-        return 1;
-    }
-    return 0;
+    return (offA - offAtag) <= epsilon;
 }
 
 /**
@@ -705,9 +718,9 @@ void copymatrix(int arraySize, double ***matrix1, double ***matrix2) {
  * @param row - pointer to the row index of the max value in A (off diag), to be calculated
  * @param col - pointer to the col index of the max value in A (off diag), to be calculated
  */
-void findmatrixP(int arraySize, double ***A, double ***P, int *row, int *col) {
+void findmatrixP(int arraySize, double ***A, double *c, double *s, int *row, int *col) {
 
-    double teta, t, c, s, sign = -1;
+    double teta, t, sign = -1;
     findMaxOffDiag(arraySize, A, row, col);
 
     /** update P values */
@@ -717,14 +730,8 @@ void findmatrixP(int arraySize, double ***A, double ***P, int *row, int *col) {
         sign = 1;
     }
     t = sign / (fabs(teta) + sqrt(pow(teta, 2) + 1));
-    c = 1 / sqrt(pow(t, 2) + 1);
-    s = t * c;
-
-    (*P)[*row][*row] = c;
-    (*P)[*col][*col] = c;
-    (*P)[*row][*col] = s;
-    (*P)[*col][*row] = -s;
-
+    (*c) = 1 / sqrt(pow(t, 2) + 1);
+    (*s) = t * (*c);
 }
 
 /**
@@ -758,18 +765,16 @@ void findMaxOffDiag(int arraySize, double ***A, int *row, int *col) {
  * @param row - row index of the max value in Atag (off diag)
  * @param col - col index of the max value in Atag (off diag)
  */
-void updateAtag(int arraySize, double ***Atag, double ***P, int row, int col) {
+void updateAtag(int arraySize, double ***Atag,double ***A, double c, double s, int row, int col) {
 
     int r;
-    double c, s, ri, rj, ij, ii, jj;
-    c = (*P)[row][row];
-    s = (*P)[row][col];
+    double ri, rj, ij, ii, jj;
 
     /** update each Atag[r,i]/Atag[r,j], for : r != i,j
      * can cut computation in half because the matrix is symmetric */
     for (r = 0; r < arraySize; r++) {
-        ri = (*Atag)[r][row];
-        rj = (*Atag)[r][col];
+        ri = (*A)[r][row];
+        rj = (*A)[r][col];
         if ((r != row) && (r != col)) {
 
             (*Atag)[r][row] = (c * ri) - (s * rj);
@@ -779,9 +784,9 @@ void updateAtag(int arraySize, double ***Atag, double ***P, int row, int col) {
         }
     }
     /**  Atag[i,i] / Atag[j,j]/ Atag[i,j] / Atag[j,i] */
-    ij = (*Atag)[row][col];
-    ii = (*Atag)[row][row];
-    jj = (*Atag)[col][col];
+    ij = (*A)[row][col];
+    ii = (*A)[row][row];
+    jj = (*A)[col][col];
 
     (*Atag)[row][row] = (c * c * ii) + (s * s * jj) - (2 * s * c * ij);
     (*Atag)[col][col] = (s * s * ii) + (c * c * jj) + (2 * s * c * ij);
@@ -797,12 +802,10 @@ void updateAtag(int arraySize, double ***Atag, double ***P, int row, int col) {
  * @param row - row index of the max value in Atag (off diag)
  * @param col - col index of the max value in Atag (off diag)
  */
-void updateV(int arraySize, double ***V, double ***P, int row, int col) {
+void updateV(int arraySize, double ***V, double c, double s, int row, int col) {
 
     int r;
-    double ri, rj, c, s;
-    c = (*P)[row][row];
-    s = (*P)[row][col];
+    double ri, rj;
 
     for (r = 0; r < arraySize; r++) {
         ri = (*V)[r][row];
