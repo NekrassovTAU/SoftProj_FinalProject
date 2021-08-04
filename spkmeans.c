@@ -553,12 +553,9 @@ double ** calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
 }
 
 /**
- * Takes a matrix and updates the result of the Jacobi algorithm in jacobiMatrix
+ * Takes a matrix and returns the result of running the Jacobi algorithm on it.
  * @param arraySize - size of the nXn matrix
  * @param inputMatrix - pointer to 2D array representation of input matrix
- * @param jacobiArray - pointer to 1D support array that will contain
- *                      the result of the Jacobi algorithm
- * @param jacobiMatrix - pointer to 2D NXN matrix built upon jacobiArray
  */
 
 double ** calcJacobi(int arraySize, double ***inputMatrix) {
