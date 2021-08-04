@@ -3,7 +3,11 @@ project(SoftProj_Final C)
 
 set(CMAKE_C_STANDARD 90)
 
-add_executable(SoftProj_Final spkmeans.c spkmeans.h spkmeansmodule.c)
+find_package(PythonLibs REQUIRED)
+include_directories(${PYTHON_INCLUDE_DIRS})
 
+add_executable(SoftProj_Final spkmeans.c )
 
+add_library(spkmeans.h spkmeansmodule.c)
 
+target_link_libraries(spkmeans.h spkmeansmodule.c ${PYTHON_LIBRARIES})
