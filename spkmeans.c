@@ -34,7 +34,7 @@ double *
 initProcess(int k, int d, int arraySize, enum goalEnum goal,
             double ***datapoint, int **init_centroids, int isCAPI);
 
-double *
+double **
 goalBasedProcess(int k, int d, int arraySize, double ***datapoint,
                  enum goalEnum goal, int **init_centroids);
 
@@ -44,27 +44,22 @@ static enum goalEnum checkGoal(char *string);
 
 static double **arrayToTwoDimArray(double **array, int n, int m);
 
-static void makeTwoDimArray(double** array, double***matrix, int n, int m);
+static double ** createMatrix(int n, int m);
 
 void processDatapoints(char *filename, double **datap_array, double ***datapoint,
                        int **dArraySizeInfo);
 
 /****************************/
-void calcWeightedAdjMatrix(int d, int arraySize, double ***datapoint,
-                             double **weightedAdjArray,
-                             double ***weightedAdjMatrix);
+double ** calcWeightedAdjMatrix(int d, int arraySize, double ***datapoint);
 
 double calcWeight(int d, double ***datapoint, int i, int j);
 
-void calcDiagDegMatrix(int arraySize, double ***weightedAdjMatrix,
-                         double **diagDegArray, double ***diagDegMatrix);
+double ** calcDiagDegMatrix(int arraySize, double ***weightedAdjMatrix);
 
-void calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
-                         double ***diagDegMatrix, double **normLaplacianArray,
-                         double ***normLaplacianMatrix);
+double ** calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
+                            double ***diagDegMatrix);
 
-void calcJacobi(int arraySize, double ***inputMatrix, double **jacobiArray,
-                double ***jacobiMatrix);
+double ** calcJacobi(int arraySize, double ***inputMatrix);
 
 void copymatrix(int arraySize, double ***matrix1, double ***matrix2);
 
@@ -89,6 +84,8 @@ double **calcSpectralClusters();
 void printTest(double **arr, int n, int m);
 
 void makeIntoIdentityMatrix(double ***emptyMatrix, int matrixSize);
+
+void freeMatrix(double ***matrix);
 
 /**
  * main, a shell function for the spectral clustering algorithm implementation
@@ -127,7 +124,7 @@ int main(int argc, char *argv[]) {
 
 
     printf("\n");
-    calcJacobi(3, &arr, &jacobiArray, &jacobiMatrix);
+    calcJacobi(3, &arr);
     printf("\n jacobi Matrix: \n");
     printTest(jacobiMatrix, 4, 3);
  //   printf("\n Values: \n");
@@ -300,66 +297,51 @@ initProcess(int k, int d, int arraySize, enum goalEnum goal,
  *                         relevant only in C-API implementation
  * @return relevant matrix according to goal
  */
-double *
+double **
 goalBasedProcess(int k, int d, int arraySize, double ***datapoint,
                  enum goalEnum goal, int **init_centroids) {
 
-    double *weightedAdjArray, **weightedAdjMatrix, *diagDegArray, **diagDegMatrix,
-            *normLaplacianArray, **normLaplacianMatrix, *spkArray,
-             **spkMatrix, *jacobiArray, **jacobiMatrix;
+    double **weightedAdjMatrix, **diagDegMatrix,
+            **normLaplacianMatrix, **spkMatrix, **jacobiMatrix;
 
     /**
      * in case of goal == jacobi, we get a symmetric matrix that we need to
      * apply the Jacobi algorithm on
      */
     if (goal == jacobi){
-        calcJacobi(arraySize, datapoint, &jacobiArray, &jacobiMatrix);
-        free(jacobiMatrix);
-        return jacobiArray; //TODO: NEEDS TO BE THE N+1 X N SUPPORT ARRAY
+        jacobiMatrix = calcJacobi(arraySize, datapoint);
+        return jacobiMatrix;
     }
 
-    calcWeightedAdjMatrix(d, arraySize, datapoint, &weightedAdjArray,
-                          &weightedAdjMatrix);
+    weightedAdjMatrix = calcWeightedAdjMatrix(d, arraySize, datapoint);
     if (goal == wam) {
-        free(weightedAdjMatrix);
-        return weightedAdjArray;
+        return weightedAdjMatrix;
     }
 
-    calcDiagDegMatrix(arraySize, &weightedAdjMatrix, &diagDegArray,
-                                      &diagDegMatrix);
+    diagDegMatrix = calcDiagDegMatrix(arraySize, &weightedAdjMatrix);
     if (goal == ddg) {
-        free(weightedAdjArray);
-        free(weightedAdjMatrix);
-        free(diagDegMatrix);
-        return diagDegArray;
+        freeMatrix(&weightedAdjMatrix);
+        return diagDegMatrix;
     }
 
-    calcNormLaplacian(arraySize, &weightedAdjMatrix, &diagDegMatrix,
-                      &normLaplacianArray, &normLaplacianMatrix);
+    normLaplacianMatrix = calcNormLaplacian(arraySize, &weightedAdjMatrix,
+                                            &diagDegMatrix);
     if (goal == lnorm) {
-        free(weightedAdjArray);
-        free(weightedAdjMatrix);
-        free(diagDegArray);
-        free(diagDegMatrix);
-        free(normLaplacianMatrix);
-        return normLaplacianArray;
+        freeMatrix(&weightedAdjMatrix);
+        freeMatrix(&diagDegMatrix);
+        return normLaplacianMatrix;
     }
 
-    calcJacobi(arraySize, &normLaplacianMatrix, &jacobiArray, &jacobiMatrix);
+    jacobiMatrix = calcJacobi(arraySize, &normLaplacianMatrix);
 
     /** TODO: if Python, we should return to implement K-Means++*/
     spkMatrix = calcSpectralClusters();
 
-    free(weightedAdjArray);
-    free(weightedAdjMatrix);
-    free(diagDegArray);
-    free(diagDegMatrix);
-    free(normLaplacianMatrix);
-    free(normLaplacianArray);
-    free(jacobiMatrix);
-    free(jacobiArray);
-    free(spkMatrix);
-    return spkArray;
+    freeMatrix(&weightedAdjMatrix);
+    freeMatrix(&diagDegMatrix);
+    freeMatrix(&normLaplacianMatrix);
+    freeMatrix(&jacobiMatrix);
+    return spkMatrix;
 }
 
 /**
@@ -422,16 +404,15 @@ static double **arrayToTwoDimArray(double **array, int n, int m) {
     return twoDimArray;
 }
 /**
- * Creates a matrix with a supporting 1D array
- * @param array - pointer to 1D support-array that we want to create of size nXm
- * @param matrix - pointer to 2D array that functions like matrix, build upon 'array'
+ * Returns a 2D matrix of size n X m
  * @param n - # of rows
  * @param m - # of cols
  */
-static void makeTwoDimArray(double** array, double*** matrix, int n, int m){
-    *array = calloc(n*m, sizeof (double ));
-    ASSERT_ERROR(*array != NULL)
-    *matrix = arrayToTwoDimArray(array, n, m);
+static double ** createMatrix(int n, int m) {
+    double *array;
+    array = calloc(n*m, sizeof (double ));
+    ASSERT_ERROR(array != NULL)
+    return arrayToTwoDimArray(&array, n, m);
 }
 
 /**
@@ -446,34 +427,40 @@ void makeIntoIdentityMatrix(double ***emptyMatrix, int matrixSize) {
         (*emptyMatrix)[i][i] = 1;
     }
 }
-
+/**
+ * Frees 1D support matrix and 2D structure built on top of that
+ * (In accordance to createMatrix matrix initialization)
+ * @param matrix - pointer to matrix we want to free
+ */
+void freeMatrix(double ***matrix) {
+    free(*matrix[0]);
+    free(*matrix);
+}
 
 /**
- * Takes the datapoint info, and updates the weighted adj matrix to match it.
+ * Takes the datapoint info, and returns the weighted adj matrix.
  * @param d - dimension of datapoints
  * @param arraySize - amount of datapoints
  * @param datapoint - pointer to 2D-array containing all datapoints
- * @param weightedAdjArray - pointer to array that will contain the weight matrix
- * @param weightedAdjMatrix - pointer to 2D array built upon weightedAdjArray.
  */
-void calcWeightedAdjMatrix(int d, int arraySize, double ***datapoint,
-                             double **weightedAdjArray,
-                             double ***weightedAdjMatrix) {
+double ** calcWeightedAdjMatrix(int d, int arraySize, double ***datapoint) {
 
     int i, j;
-    double value;
+    double value, **weightedAdjMatrix;
 
     /** creating 2-D array */
-    makeTwoDimArray(weightedAdjArray, weightedAdjMatrix, arraySize, arraySize);
+    weightedAdjMatrix = createMatrix(arraySize, arraySize);
 
     /** calculating the weights */
     for (i = 0; i < arraySize; i++) {
         for (j = i + 1; j < arraySize; j++) {
             value = calcWeight(d, datapoint, i, j);
-            *weightedAdjMatrix[i][j] = value;
-            *weightedAdjMatrix[j][i] = value;
+            weightedAdjMatrix[i][j] = value;
+            weightedAdjMatrix[j][i] = value;
         }
     }
+
+    return weightedAdjMatrix;
 }
 
 /**
@@ -499,50 +486,45 @@ double calcWeight(int d, double ***datapoint, int i, int j) {
 }
 
 /**
- * Takes the weightedAdjMatrix, and updates the sum of weights for each point
- * in diagDegMatrix
+ * Takes the weightedAdjMatrix, and returns the diagonal degree matrix
+ * corresponding to it
  * @param arraySize - amount of datapoints
  * @param weightedAdjMatrix - 2-D array containing all the weights
- * @param diagDegArray - pointer to 1D support array that will contain diagonal
- *                       degree matrix data
- * @param diagDegMatrix - pointer to 2D matrix built upon diagDegArray
+
  */
-void calcDiagDegMatrix(int arraySize, double ***weightedAdjMatrix,
-                         double **diagDegArray, double ***diagDegMatrix) {
+double ** calcDiagDegMatrix(int arraySize, double ***weightedAdjMatrix) {
 
     int i, j;
-    double sumofweights;
+    double sumofweights, **diagDegMatrix;
 
-    makeTwoDimArray(diagDegArray, diagDegMatrix, arraySize, arraySize);
+    diagDegMatrix = createMatrix(arraySize, arraySize);
 
     for (i = 0; i < arraySize; i++) {
         sumofweights = 0;
         for (j = 0; j < arraySize; j++) {
             sumofweights += (*weightedAdjMatrix)[i][j];
         }
-        (*diagDegMatrix)[i][i] = sumofweights;
+        (diagDegMatrix)[i][i] = sumofweights;
     }
+
+    return diagDegMatrix;
 }
 
 /**
  * Takes the weighted and the diagonal matrices info,
- * and updates the normLaplacian matrix.
+ * and returns the normLaplacian matrix.
  * @param arraySize - amount of datapoints
  * @param weightedAdjMatrix - pointer to 2-D array containing all the weights
  * @param diagDegMatrix - pointer to 2-D array containing the weights sum
  *                        for each datapoint
- * @param normLaplacianArray - pointer to 1D support array that will contain the
- *                             matrix data
- * @param normLaplacianMatrix - pointer to 2D matrix built upon normLaplacianArray
  */
-void calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
-                         double ***diagDegMatrix, double **normLaplacianArray,
-                         double ***normLaplacianMatrix) {
+double ** calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
+                         double ***diagDegMatrix) {
 
     int i, j;
-    double value, *sqrtDegMatrix;
+    double value, *sqrtDegMatrix, **normLaplacianMatrix;
 
-    makeTwoDimArray(normLaplacianArray, normLaplacianMatrix, arraySize, arraySize);
+    normLaplacianMatrix = createMatrix(arraySize, arraySize);
 
     /** 1-D array represents sqrt of diagDegMatrix */
     sqrtDegMatrix = calloc(arraySize, sizeof(double));
@@ -557,15 +539,17 @@ void calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
      * convince yourself it's true :) */
 
     for (i = 0; i < arraySize; i++) {
-        (*normLaplacianMatrix)[i][i] = 1;
+        (normLaplacianMatrix)[i][i] = 1;
         for (j = i + 1; j < arraySize; j++) {
             value = -(sqrtDegMatrix[i] * (*weightedAdjMatrix)[i][j] * sqrtDegMatrix[j]);
-            (*normLaplacianMatrix)[i][j] = value;
-            (*normLaplacianMatrix)[j][i] = value;
+            (normLaplacianMatrix)[i][j] = value;
+            (normLaplacianMatrix)[j][i] = value;
         }
     }
 
     free(sqrtDegMatrix);
+
+    return normLaplacianMatrix;
 }
 
 /**
@@ -577,38 +561,37 @@ void calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
  * @param jacobiMatrix - pointer to 2D NXN matrix built upon jacobiArray
  */
 
-void calcJacobi(int arraySize, double ***inputMatrix, double **jacobiArray,
-                double ***jacobiMatrix) {
+double ** calcJacobi(int arraySize, double ***inputMatrix) {
 
     int row, col;
 
-    double *A_array, **A_matrix, *P_array, **P_matrix,
-            *Atag_array, **Atag_matrix, *V_array, **V_matrix;
+    double **A, **P, **Atag, **V, **jacobiMatrix;
 
     /** initialization */
-    makeTwoDimArray(&A_array, &A_matrix, arraySize, arraySize);
-    makeTwoDimArray(&P_array, &P_matrix, arraySize, arraySize);
-    makeTwoDimArray(&Atag_array, &Atag_matrix, arraySize, arraySize);
-    makeTwoDimArray(&V_array, &V_matrix, arraySize, arraySize);
+    A = createMatrix(arraySize, arraySize);
+    P = createMatrix(arraySize, arraySize);
+    Atag = createMatrix(arraySize, arraySize);
+    V = createMatrix(arraySize, arraySize);
 
-    makeIntoIdentityMatrix(&P_matrix, arraySize);
-    makeIntoIdentityMatrix(&V_matrix, arraySize);
+    makeIntoIdentityMatrix(&P, arraySize);
+    makeIntoIdentityMatrix(&V, arraySize);
 
     /** run until convergence -  */
-    copymatrix(arraySize, inputMatrix, &Atag_matrix); // Atag_matrix = inputMatrix
+    copymatrix(arraySize, inputMatrix, &Atag); // Atag = inputMatrix
 
     do {
-        copymatrix(arraySize, &Atag_matrix, &A_matrix);                   // A_matrix = Atag_matrix
-        findmatrixP(arraySize, &A_matrix, &P_matrix, &row, &col);        // P_matrix
-        updateAtag(arraySize, &Atag_matrix, &P_matrix, row, col);         // A_matrix' = P_matrix^T * A_matrix * P_matrix
-        updateV(arraySize, &V_matrix, &P_matrix, row, col);               // V_matrix *= P_matrix
+        copymatrix(arraySize, &Atag, &A);                   // A = Atag
+        findmatrixP(arraySize, &A, &P, &row, &col);        // P
+        updateAtag(arraySize, &Atag, &P, row, col);         // A' = P^T * A * P
+        updateV(arraySize, &V, &P, row, col);               // V *= P
 
-    } while (!converge(arraySize, &A_matrix, &Atag_matrix));              // as long as delta > epsilon
+    } while (!converge(arraySize, &A, &Atag));              // as long as delta > epsilon
 
-    /** Atag_matrix has the A_matrix"A_matrix
- *  V_matrix has the V_matrix"A_matrix */
+    /** Atag has the A"A
+ *  V has the V"A */
 
-    *jacobiMatrix = copyJacoby(arraySize, &Atag_matrix, &V_matrix);
+    jacobiMatrix = copyJacoby(arraySize, &Atag, &V);
+    return jacobiMatrix;
 }
 
 double **copyJacoby(int arraySize, double ***Atag, double ***V) {
