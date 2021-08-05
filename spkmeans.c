@@ -29,7 +29,8 @@
  */
 int main(int argc, char *argv[]) {
 //    checkArgs(argc, argv, 0);
-    int i;
+    int i ,x,y;
+    double w,z;
     double **arr, **Atag, **V, **jacobiMatrix, *jacobiArray;
     /*****/
 //    jacobiMatrix = (double**) calloc(4,sizeof (double*));
@@ -47,24 +48,40 @@ int main(int argc, char *argv[]) {
  //   for(i = 0; i < 4; i++) {
  //       jacobiMatrix[i] = calloc(3, sizeof(double));
   //  }
-    arr[0][0] = 3;
-    arr[0][1] = 2;
-    arr[0][2] = 4;
-    arr[1][0] = 2;
-    arr[1][1] = 0;
-    arr[1][2] = 2;
-    arr[2][0] = 4;
-    arr[2][1] = 2;
-    arr[2][2] = 3;
-
-    printTest(arr, 3, 3);
 
 
+
+      arr[0][0] = 3;
+      arr[0][1] = 2;
+      arr[0][2] = 4;
+      arr[1][0] = 2;
+      arr[1][1] = 0;
+      arr[1][2] = 2;
+      arr[2][0] = 4;
+      arr[2][1] = 2;
+      arr[2][2] = 3;
+
+      printTest(arr, 3, 3);
+      jacobiMatrix = calcJacobi(3, &arr);
+      printf("\n\n");
+      printTest(jacobiMatrix, 4, 3);
+
+      sortJacobi(3, &jacobiMatrix);
+      printf("\n\n");
+      printTest(jacobiMatrix, 4, 3);
+
+    /*
     printf("\n");
     jacobiMatrix = calcJacobi(3, &arr);
     printf("\n jacobi Matrix: \n");
     printTest(jacobiMatrix, 4, 3);
- //   printf("\n Values: \n");
+
+
+    sortJacobi(3, &jacobiMatrix);
+    printTest(jacobiMatrix, 4, 3);
+*/
+
+    //   printf("\n Values: \n");
   //  printTest(Atag);
    // printf("\n Vectors: \n");
    // printTest(V);
@@ -787,14 +804,18 @@ double **
 calcSpectralClusters(int *k, int arraySize, int isCAPI,
                      double ***jacobiMatrix) {
 
-    double **U, **spkMatrix;
+    double **U, **T, **spkMatrix;
 
     //TODO: sort jacobi
-
+    sortJacobi(arraySize, jacobiMatrix);
     //TODO: determine k (if k==0) AND change k variable accordingly, important for CAPI
-
+    if(k == 0){
+        (*k) = getK(arraySize, jacobiMatrix);
+    }
     //TODO: get k first eigenvectors from jacobi into U, normalize U
-
+    U = getMatrixU(*k, arraySize, jacobiMatrix);
+    normalizeU(*k, arraySize, &U);
+    T = U;
     //TODO: K-Means algorithm - if CAPI - need to return to python for K-Means++
     //TODO:                             - need to get back result from python
     //TODO: Need to cut off function when returning to python, then start new
@@ -808,6 +829,171 @@ calcSpectralClusters(int *k, int arraySize, int isCAPI,
 double ** KMeansAlgorithm(int k, int *d, int arraySize, double ***datapoints,
                           int isCAPI, int **init_centroids){
     return NULL;
+}
+
+void sortJacobi(int arraySize, double ***jacobiMatrix){
+    int i;
+    int *newIndex = (int *) calloc(arraySize, sizeof(int));        // keeps the new index of each
+    double *eigenValuesSorted = calloc(arraySize, sizeof(double)); // temp array to keep the eigenvalues sorted
+    for (i = 0; i < arraySize; i++){
+        newIndex[i] = -1;
+    }
+
+    mergeSort(*jacobiMatrix, &eigenValuesSorted, &newIndex, 0, arraySize - 1);
+
+    for(i = 0; i < arraySize; i++){
+        printf("%d," ,newIndex[i]);
+    }
+    sortEigenVectors(arraySize, jacobiMatrix, newIndex);
+
+    free(newIndex);
+    free(eigenValuesSorted);
+}
+
+void mergeSort(double **jacobiMatrix, double **eigenValuesSorted, int **newIndex, int low, int high){
+    int mid;
+
+    if(low < high){
+        mid = (low + high) / 2;
+        mergeSort(jacobiMatrix, eigenValuesSorted, newIndex, low, mid);
+        mergeSort(jacobiMatrix, eigenValuesSorted, newIndex, mid + 1, high);
+        merge(jacobiMatrix, eigenValuesSorted, newIndex, low, mid, high);
+    }
+    else{
+        return;
+    }
+}
+
+void merge(double **jacobiMatrix, double **eigenValuesSorted, int **newIndex, int low, int mid, int high){
+    int l1, l2, i;
+    double x = -1;
+    for(l1 = low, l2 = mid+1, i = low; l1 <= mid && l2 <= high; i++) {
+        printf("(*jacobiMatrix)[l1] = %f, \n (*jacobiMatrix)[l2] = %f\n",(*jacobiMatrix)[l1], (*jacobiMatrix)[l2] );
+        printf("%d\n", x==(*jacobiMatrix)[l1]);
+        printf("%d\n", x==(*jacobiMatrix)[l2]);
+        if ((*jacobiMatrix)[l1] <= (*jacobiMatrix)[l2]) {
+            printf("line 1111111111");
+            (*eigenValuesSorted)[i] = (*jacobiMatrix)[l1];
+            if ((i == l1 && (*newIndex)[l1] != -1) || i != l1) { // i=l1 but we update the index not for the same time, or i!=l1 so update it anyway
+            //if (i != l1) {
+                (*newIndex)[l1] = i;
+            }
+//            printf(" %d round = %d\n", i, (*newIndex)[l1]);
+            l1++;
+        }
+        else {
+            printf("line 2222222222");
+
+            (*eigenValuesSorted)[i] = (*jacobiMatrix)[l2];
+            if ((i == l2 && (*newIndex)[l2] != -1) || i != l2) { // i=l1 but we update the index not for the same time, or i!=l1 so update it anyway
+            //if (i != l2){
+                (*newIndex)[l2] = i;
+            }
+//            printf("l2 = %d, %d round = %d\n",l2, i, (*newIndex)[l2]);
+            l2++;
+        }
+    }
+
+    printf("\n\n l1 = %d, l2 = %d, mid = %d\n ", l1, l2, mid);
+    while(l1 <= mid){
+        (*eigenValuesSorted)[i] = (*jacobiMatrix)[l1];
+        if ((i == l1 && (*newIndex)[l1] != -1) || i != l1) { // i=l1 but we update the index not for the same time, or i!=l1 so update it anyway
+        //if(i != l1){
+            (*newIndex)[l1] = i;
+            printf("\n i=%d, l1 = %d \n", i, l1);
+        }
+  //      printf("l1 = %d, %d round = %d\n",l1, i, (*newIndex)[l1]);
+
+        i++;
+        l1++;
+    }
+    while(l2 <= high){
+        (*eigenValuesSorted)[i] = (*jacobiMatrix)[l2];
+
+        if ((i == l2 && (*newIndex)[l2] != -1) || i != l2) { // i=l1 but we update the index not for the same time, or i!=l1 so update it anyway
+
+            // if(i != l2){
+            (*newIndex)[l2] = i;
+            printf("\n i=%d, l2 = %d \n", i, l2);
+        }
+        i++;
+        l2++;
+    }
+    for(i = low; i <= high; i++){
+        (*jacobiMatrix)[i] = (*eigenValuesSorted)[i];
+
+    //    printf("print current order \n");
+     //   printf("  (*jacobiMatrix)[i] = %f \n", (*jacobiMatrix)[i]);
+
+    }
+}
+
+void sortEigenVectors(int arraySize, double ***jacobiMatrix, int *newIndex){
+    int i, j;
+    double **tmpMatrix = createMatrix(arraySize, arraySize);
+
+    for(j = 0; j < arraySize; j++){                 // use temp matrix to save the eigenVectors that their eigenValues changed place earlier
+        if(newIndex[j] != -1){     // switch
+           for(i = 0; i < arraySize; i++){
+               tmpMatrix[i][j] = (*jacobiMatrix)[i+1][j];
+           }
+        }
+    }
+    /** could change the pointer insead */
+    for(j = 0; j < arraySize; j++){   // update the places of the eigenvectors in the jacobiMatrix.
+        if(newIndex[j] != -1){
+            for(i = 0; i < arraySize; i++){
+                (*jacobiMatrix)[i+1][j] = tmpMatrix[i][j];
+            }
+        }
+    }
+
+    freeMatrix(&tmpMatrix);
+}
+
+
+int getK(int arraySize, double ***jacobiMatrix) {
+
+    int j, k = 0;
+    double cur, max = (-1);
+    for(j = 0; j < arraySize / 2; j++) {
+        cur = fabs((*jacobiMatrix)[0][j] - (*jacobiMatrix)[0][j+1]);
+        if(cur > max){
+            max = cur;
+            k = j + 1;
+        }
+    }
+    return k;
+}
+
+double **getMatrixU(int k, int arraySize, double ***jacobiMatrix){
+
+    int i, j;
+    double **U = createMatrix(arraySize, k);
+
+    for(i = 0; i < arraySize; i++){
+        for(j = 0; j < k; j++){
+            U[i][j] = (*jacobiMatrix)[i+1][j];
+        }
+    }
+    return U;
+}
+
+void normalizeU(int k, int arraySize, double ***U){
+    int i, j;
+    double valueOfRow;
+
+    for(i = 0; i < arraySize; i++){
+        valueOfRow = 0;
+        for(j = 0; j < k; j++){
+            valueOfRow += pow((*U)[i][j], 2);
+        }
+
+        valueOfRow = sqrt(valueOfRow);
+        for(j = 0; j < arraySize; j++) {
+            (*U)[i][j] /= valueOfRow;   // T(i,j) = U(i,j) / valueOfRow
+        }
+    }
 }
 
 
