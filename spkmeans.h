@@ -65,4 +65,7 @@ void makeIntoIdentityMatrix(double ***emptyMatrix, int matrixSize);
 
 void freeMatrix(double ***matrix);
 
+double ** KMeansAlgorithm(int k, int *d, int arraySize, double ***datapoints,
+                          int isCAPI, int **init_centroids);
+
 #endif //SOFTPROJ_FINAL_SPKMEANS_H

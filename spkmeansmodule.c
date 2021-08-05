@@ -39,13 +39,13 @@ static PyObject *initializeCProcess(PyObject *self, PyObject *args){
     argv = calloc(argc, sizeof(char *));
     ASSERT_ERROR(argv != NULL)
     for (i = 0; i < argc; i++){
-        temp = PyBytes_AsString(PyObject_Repr(PyList_GetItem(argv_PyArray, i)));
+        temp = PyBytes_AsString(PyList_GetItem(argv_PyArray, i));
         argv[i] = strdup(temp);
     }
 
     ret_matrix = checkArgs(argc, argv, 1, &row_count, &col_count);
 
-    /*Returning the centroids as a Python list of lists*/
+    /*Returning the data as a Python list of lists*/
     retPyMatrix = PyList_New(row_count);
     tmpListPointer = calloc(row_count, sizeof(PyObject*));
     for (i = 0; i < row_count ; i++){
@@ -76,7 +76,46 @@ static PyObject *initializeCProcess(PyObject *self, PyObject *args){
 static PyObject *KMeansPlusPlusIntegration(PyObject *self, PyObject *args){
     /* argument in args is retPyMatrix from initializeCProcess,
      * and a list of initial centroids*/
-    //TODO: IMPLEMENT
+
+    /* Initialization and argument parsing */
+    int i, j, k, d, arraySize, *init_centroids;
+    double **matrix, **retMatrix;
+    PyObject *init_centroidsPyList, *matrixPyList, *retPyMatrix, *tmpPyList;
+
+    if (!PyArg_ParseTuple(args, "OO",
+                          &matrixPyList,
+                          &init_centroidsPyList)){
+        Py_DECREF(matrixPyList);
+        Py_DECREF(init_centroidsPyList);
+        return NULL;
+    }
+
+    /* Parsing Python objects to C objects */
+    arraySize = (int) PyList_Size(matrixPyList);
+    k = (int) PyList_Size(init_centroidsPyList);
+    d = k;
+    matrix = createMatrix(arraySize, d);
+    init_centroids = calloc(k, sizeof(int));
+
+    for (i = 0 ; i < arraySize ; i++){
+        tmpPyList = PyList_GetItem(matrixPyList, i);
+        for (j = 0 ; j < d; j++){
+            matrix[i][j] = PyFloat_AsDouble(PyList_GetItem(tmpPyList, j));
+        }
+    }
+
+    for (i = 0; i < k; i++){
+        init_centroids[i] = (int) PyLong_AsLong(PyList_GetItem(init_centroidsPyList, i));
+    }
+
+    /* Running KMeans algorithm in C */
+    retMatrix = KMeansAlgorithm(k, &d, arraySize, &matrix, 1, &init_centroids);
+
+    /* Parsing C Objects back to Python objects */
+    retPyMatrix = PyList_New(arraySize * d);
+
+    /* Freeing allocated memory and finishing call*/
+
     return NULL;
 }
 

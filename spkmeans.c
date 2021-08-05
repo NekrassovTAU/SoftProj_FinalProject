@@ -805,6 +805,11 @@ calcSpectralClusters(int *k, int arraySize, int isCAPI,
     return NULL;
 }
 
+double ** KMeansAlgorithm(int k, int *d, int arraySize, double ***datapoints,
+                          int isCAPI, int **init_centroids){
+    return NULL;
+}
+
 
 void printTest(double **matrix, int n, int m){
     int i, j;
