@@ -75,7 +75,6 @@ void normalizeU(int k, int arraySize, double ***U);
 
 
 
-void printTest(double **matrix, int n, int m);
 
 void makeIntoIdentityMatrix(double ***emptyMatrix, int matrixSize);
 
@@ -83,5 +82,16 @@ void freeMatrix(double ***matrix);
 
 double ** KMeansAlgorithm(int k, int *d, int arraySize, double ***datapoints,
                           int isCAPI, int **init_centroids);
+
+
+/** Testers */
+void printTest(double **matrix, int n, int m);
+
+void TesterToSortJacibi();
+
+double **randomMatrix(int n, int m);
+
+void print1Darray(int *array, int arraySize);
+
 
 #endif //SOFTPROJ_FINAL_SPKMEANS_H

@@ -29,7 +29,7 @@
  */
 int main(int argc, char *argv[]) {
 //    checkArgs(argc, argv, 0);
-
+/*
     int i;
     double **arr, **Atag, **V, **jacobiMatrix, *jacobiArray;
 
@@ -57,7 +57,8 @@ int main(int argc, char *argv[]) {
       sortJacobi(3, &jacobiMatrix);
       printf("\n\n");
       printTest(jacobiMatrix, 4, 3);
-
+*/
+      TesterToSortJacibi();
     return 0;
 }
 
@@ -773,7 +774,7 @@ double ** KMeansAlgorithm(int k, int *d, int arraySize, double ***datapoints,
  * @param arraySize - amount of datapoints
  * @param jacobiMatrix - jacobi matrix which includes eigenValues and EigenVectors
  */
-void sortJacobi(int arraySize, double ***jacobiMatrix){
+void sortJacobi(int arraySize, double ***jacobiMatrix) {
     int i;
     int *newIndex = (int *) calloc(arraySize, sizeof(int));        // keeps the new index of each eigenValue
     double *eigenValuesSorted = calloc(arraySize, sizeof(double)); // temp array to keep the eigenvalues sorted
@@ -783,6 +784,12 @@ void sortJacobi(int arraySize, double ***jacobiMatrix){
     }
 
     mergeSort(*jacobiMatrix, &eigenValuesSorted, &newIndex, 0, arraySize - 1); // sort the eigen values
+
+    printf("\n The newIndex 1-D array: \n ");
+    print1Darray(newIndex, arraySize);
+    printf("\neigenValues sorted: \n");
+    printTest(*jacobiMatrix, arraySize+1, arraySize);
+
     sortEigenVectors(arraySize, jacobiMatrix, newIndex);                                // sort the eigenVectors respectively
 
     free(newIndex);
@@ -880,13 +887,13 @@ void sortEigenVectors(int arraySize, double ***jacobiMatrix, int *newIndex){
     for(j = 0; j < arraySize; j++){                 // use temp matrix to save the eigenVectors that their eigenValues changed place earlier
         if(newIndex[j] != -1){     // switch
            for(i = 0; i < arraySize; i++){
-               tmpMatrix[i][j] = (*jacobiMatrix)[i+1][j];
+               tmpMatrix[i][newIndex[j]] = (*jacobiMatrix)[i+1][j];
            }
         }
     }
-    /** could change the pointer insead */
+    /** could change the pointer instead */
     for(j = 0; j < arraySize; j++){   // update the places of the eigenvectors in the jacobiMatrix.
-        if(newIndex[j] != -1){
+        if(newIndex[j] != -1){ // the current column changed place during the sort
             for(i = 0; i < arraySize; i++){
                 (*jacobiMatrix)[i+1][j] = tmpMatrix[i][j];
             }
@@ -960,6 +967,9 @@ void normalizeU(int k, int arraySize, double ***U){
 }
 
 
+/********************** Testers **********************/
+
+
 /**
  * Tester to print n*m Matrix
  */
@@ -972,3 +982,47 @@ void printTest(double **matrix, int n, int m){
         printf("\n");
     }
 }
+
+/** sortJacobi Tester */
+void TesterToSortJacibi(){
+    double **matrix;
+
+    /** initialization */
+    matrix = randomMatrix(4,3);
+
+    /** Print the random matrix */
+    printf("\nThe Random Matrix is:\n");
+    printTest(matrix, 4, 3);
+
+    /** sort the matrix by the first line */
+    sortJacobi(3, &matrix);
+
+    /** print the sorted Matrix */
+    printf("\nThe Sorted Matrix is:\n");
+    printTest(matrix, 4, 3);
+
+}
+
+/** creates random n*m matrix */
+double **randomMatrix(int n, int m) {
+
+    int i, j;
+    double **matrix = createMatrix(n, m);
+
+    for(i = 0; i < n; i++){
+        for(j = 0; j < m; j++){
+            matrix[i][j] = rand();
+        }
+    }
+    return matrix;
+}
+
+void print1Darray(int *array, int arraySize){
+
+    int i;
+
+    for(i = 0; i < arraySize; i++){
+        printf("%d,", array[i]);
+    }
+}
+
