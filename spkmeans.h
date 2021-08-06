@@ -59,6 +59,14 @@ double** copyJacoby(int arraySize, double ***Atag, double ***V);
 double **
 calcSpectralClusters(int *k, int arraySize, int isCAPI, double ***jacobiMatrix);
 
+/***/
+void sortJacobi(int arraySize, double ***jacobiMatrix);
+void mergeSort(double **jacobiMatrix, double ***combined, double ***tmp, int low, int high);
+void merge(double **jacobiMatrix, double ***combined, int ***tmp, int low, int mid, int high);
+void sortEigenVectors(int arraySize, double ***jacobiMatrix, double **combined);
+
+/***/
+/*
 void sortJacobi(int arraySize, double ***jacobiMatrix);
 
 void mergeSort(double **jacobiMatrix, double **eigenValuesSorted, int **newIndex, int low, int high);
@@ -66,7 +74,7 @@ void mergeSort(double **jacobiMatrix, double **eigenValuesSorted, int **newIndex
 void merge(double **jacobiMatrix, double **eigenValuesSorted, int **newIndex, int low, int mid, int high);
 
 void sortEigenVectors(int arraySize, double ***jacobiMatrix, int *newIndex);
-
+*/
 int getK(int arraySize, double ***jacobiMatrix);
 
 double **getMatrixU(int k, int arraySize, double ***jacobiMatrix);
@@ -87,7 +95,7 @@ double ** KMeansAlgorithm(int k, int *d, int arraySize, double ***datapoints,
 /** Testers */
 void printTest(double **matrix, int n, int m);
 
-void TesterToSortJacibi();
+void TesterToSortJacobi();
 
 double **randomMatrix(int n, int m);
 
