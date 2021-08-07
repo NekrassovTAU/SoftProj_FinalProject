@@ -58,7 +58,13 @@ int main(int argc, char *argv[]) {
       printf("\n\n");
       printTest(jacobiMatrix, 4, 3);
 */
-      TesterToSortJacobi();
+    double **weightdAdjMatrix, **diagDegMatrix, **normLaplacianMatrix, **jacobiMatrix;
+
+    // check the calc functions directly
+    TesterToWeight();
+
+    TesterToSortJacobi();
+
     return 0;
 }
 
@@ -432,7 +438,8 @@ double calcWeight(int d, double ***datapoint, int i, int j) {
         value += pow(((*datapoint)[i][t] - (*datapoint)[j][t]), 2);
     }
 
-    value = exp(sqrt(value) / (-2));
+   value = exp(sqrt(value) / (-2)); // currently exp sets value to 0 - work it out
+
     return value;
 }
 
@@ -468,6 +475,7 @@ double ** calcDiagDegMatrix(int arraySize, double ***weightedAdjMatrix) {
  * @param weightedAdjMatrix - pointer to 2-D array containing all the weights
  * @param diagDegMatrix - pointer to 2-D array containing the weights sum
  *                        for each datapoint
+ * @return The norm laplacian matrix
  */
 double ** calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
                          double ***diagDegMatrix) {
@@ -507,10 +515,11 @@ double ** calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
  * Takes a matrix and returns the result of running the Jacobi algorithm on it.
  * @param arraySize - size of the nXn matrix
  * @param inputMatrix - pointer to 2D array representation of input matrix
+ * @return The jacobi matrix
  */
 double ** calcJacobi(int arraySize, double ***inputMatrix) {
 
-    int row, col, converge;
+    int row, col, converge, iterations = 0;
     double c, s;
     double **A, **Atag, **V, **jacobiMatrix;
 
@@ -525,15 +534,15 @@ double ** calcJacobi(int arraySize, double ***inputMatrix) {
     A = (*inputMatrix);
 
     do {
-        findmatrixP(arraySize, &A, &c, &s, &row, &col);         // P
-        updateAtag(arraySize, &Atag, &A, c, s, row, col);         // A' = P^T * A * P
-        updateV(arraySize, &V, c, s, row, col);               // V *= P
+        findmatrixP(arraySize, &A, &c, &s, &row, &col); // P
+        updateAtag(arraySize, &Atag, &A, c, s, row, col); // A' = P^T * A * P
+        updateV(arraySize, &V, c, s, row, col);  // V *= P
         converge = convergenceCheck(arraySize, &A, &Atag);
-
-        if(!converge) {
-            copymatrix(arraySize, &Atag, &A);                // A = Atag
+        iterations++;
+        if(!converge && (iterations < 100)) {
+            copymatrix(arraySize, &Atag, &A); // A = Atag
         }
-    } while (!converge);              // as long as delta > epsilon
+    } while (!converge || (iterations < 100)); // as long as (delta > epsilon) or number of iterations is under 100
 
 
     /** Atag has the A"A
@@ -548,7 +557,13 @@ double ** calcJacobi(int arraySize, double ***inputMatrix) {
 }
 
 
-
+/**
+ * Copies the eigenValues and eigenVectors into the final jacobiMatrix and returns it
+ * @param arraySize - amount of datapoints
+ * @param Atag - pointer to 2-D array containing the eigenValues on the diag
+ * @param diagDegMatrix - pointer to 2-D array containing the eigenVectors as columns
+ * @return The jacobi matrix
+ */
 double **copyJacoby(int arraySize, double ***Atag, double ***V) {
     int i, j;
     double **jacobiMatrix;
@@ -1103,18 +1118,33 @@ void TesterToSortJacobi(){
     double **matrix;
 
     /** initialization */
-    matrix = randomMatrix(6,5);
+    matrix = randomMatrix(9,8);
 
     /** Print the random matrix */
     printf("\nThe Random Matrix is:\n");
-    printTest(matrix, 6, 5);
+    printTest(matrix, 9, 8);
 
     /** sort the matrix by the first line */
-    sortJacobi(5, &matrix);
+    sortJacobi(8, &matrix);
 
     /** print the sorted Matrix */
     printf("\nThe Sorted Matrix is:\n");
-    printTest(matrix, 6, 5);
+    printTest(matrix, 9, 8);
+
+}
+
+/** the method calculate weighted Adj Matrix on RANDOM Matrix */
+void TesterToWeight(){
+    double **matrix, **weightedAdjMatrix;
+    int d = 3, arraySize = 6;
+
+    matrix = randomMatrix(arraySize, d);
+    printf("\nRandom Matrix:\n");
+    printTest(matrix, arraySize, d);
+
+    double **weightdAdjMatrix = calcWeightedAdjMatrix(d, arraySize, &matrix);
+    printf("\nWeighted Adj Matrix:\n");
+    printTest(weightdAdjMatrix, arraySize, arraySize);
 
 }
 

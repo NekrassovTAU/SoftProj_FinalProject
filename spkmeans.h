@@ -97,6 +97,8 @@ void printTest(double **matrix, int n, int m);
 
 void TesterToSortJacobi();
 
+void TesterToWeight();
+
 double **randomMatrix(int n, int m);
 
 void print1Darray(int *array, int arraySize);
