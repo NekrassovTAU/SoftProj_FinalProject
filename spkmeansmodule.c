@@ -10,9 +10,15 @@
         exit(0);\
     }
 
+#define BEEP(num) \
+printf("%s %d%s", "MODULE Check #" , num, "\n");
+
+
 static PyObject *initializeCProcess(PyObject *self, PyObject *args);
 
 static PyObject *KMeansPlusPlusIntegration(PyObject *self, PyObject *args);
+
+static PyObject ** createPyListArray(int n, int m);
 
 
 static PyObject *initializeCProcess(PyObject *self, PyObject *args){
@@ -23,33 +29,38 @@ static PyObject *initializeCProcess(PyObject *self, PyObject *args){
     char **argv, *temp;
     double **ret_matrix;
     PyObject *argv_PyArray, *retPyMatrix, **tmpListPointer;
-    if (!PyArg_ParseTuple(args, "O",
+
+    if (!PyArg_ParseTuple(args, "O!", &PyList_Type,
                           &argv_PyArray)){
         Py_DECREF(argv_PyArray);
-        return NULL;
+        Py_RETURN_NONE;
     }
 
     /* Parsing Python objects to C objects */
-    argc = (int) PyList_Size(argv_PyArray);
-    if(argc < 1){
+    argc = (int) PyObject_Length(argv_PyArray);
+    if(argc < 0){
         Py_DECREF(argv_PyArray);
-        return NULL;
+        printf("%s", "Invalid Input!\n");
+        Py_RETURN_NONE;
     }
 
+    /** TODO: Put in seperate function? */
     argv = calloc(argc, sizeof(char *));
     ASSERT_ERROR(argv != NULL)
     for (i = 0; i < argc; i++){
-        temp = PyBytes_AsString(PyList_GetItem(argv_PyArray, i));
+        temp = PyBytes_AsString(PyUnicode_AsEncodedString(
+                PyList_GetItem(argv_PyArray, i),
+                "utf-8", "strict"));
         argv[i] = strdup(temp);
     }
 
     ret_matrix = checkArgs(argc, argv, 1, &row_count, &col_count);
 
     /*Returning the data as a Python list of lists*/
+    /** TODO: Put in seperate function? */
     retPyMatrix = PyList_New(row_count);
-    tmpListPointer = calloc(row_count, sizeof(PyObject*));
+    tmpListPointer = createPyListArray(row_count, col_count);
     for (i = 0; i < row_count ; i++){
-        tmpListPointer[i] = PyList_New(col_count);
         for (j = 0; j < col_count ; j++){
             PyList_SetItem(tmpListPointer[i], j, PyFloat_FromDouble(ret_matrix[i][j]));
         }
@@ -63,9 +74,6 @@ static PyObject *initializeCProcess(PyObject *self, PyObject *args){
     free(argv);
     freeMatrix(&ret_matrix);
 
-    for(i = 0; i < row_count ; i++){
-        Py_DECREF(tmpListPointer[i]); //might be problematic? need to check
-    }
     free(tmpListPointer);
 
     Py_DECREF(argv_PyArray);
@@ -82,8 +90,8 @@ static PyObject *KMeansPlusPlusIntegration(PyObject *self, PyObject *args){
     double **matrix, **retMatrix;
     PyObject *init_centroidsPyList, *matrixPyList, *retPyMatrix, *tmpPyList;
 
-    if (!PyArg_ParseTuple(args, "OO",
-                          &matrixPyList,
+    if (!PyArg_ParseTuple(args, "O!O!", &PyList_Type,
+                          &matrixPyList, &PyList_Type,
                           &init_centroidsPyList)){
         Py_DECREF(matrixPyList);
         Py_DECREF(init_centroidsPyList);
@@ -91,8 +99,8 @@ static PyObject *KMeansPlusPlusIntegration(PyObject *self, PyObject *args){
     }
 
     /* Parsing Python objects to C objects */
-    arraySize = (int) PyList_Size(matrixPyList);
-    k = (int) PyList_Size(init_centroidsPyList);
+    arraySize = (int) PyObject_Length(matrixPyList);
+    k = (int) PyObject_Length(init_centroidsPyList);
     d = k;
     matrix = createMatrix(arraySize, d);
     init_centroids = calloc(k, sizeof(int));
@@ -116,7 +124,20 @@ static PyObject *KMeansPlusPlusIntegration(PyObject *self, PyObject *args){
 
     /* Freeing allocated memory and finishing call*/
 
-    return NULL;
+    return retPyMatrix;
+}
+
+static PyObject ** createPyListArray(int n, int m){
+    PyObject **array;
+    int i;
+
+    array = calloc(n, sizeof (PyObject* ));
+
+    for (i = 0; i < n; i++) {
+        array[i] = PyList_New(m);
+    }
+
+    return array;
 }
 
 /* Defining the methods that are visible to the C extension spkmeansmodule*/

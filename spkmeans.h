@@ -22,7 +22,7 @@ static enum goalEnum checkGoal(char *string);
 
 static double **arrayToTwoDimArray(double **array, int n, int m);
 
-static double ** createMatrix(int n, int m);
+double ** createMatrix(int n, int m);
 
 void processDatapoints(char *filename, double **datap_array, double ***datapoint,
                        int **dArraySizeInfo);

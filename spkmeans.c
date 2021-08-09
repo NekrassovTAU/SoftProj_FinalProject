@@ -24,6 +24,9 @@
          exit(0);\
     }
 
+#define BEEP(num) \
+    printf("%s %d%s", "SPKMEANS Check #" , num, "\n");
+
 /**
  * main, a shell function for the spectral clustering algorithm implementation
  */
@@ -68,6 +71,9 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
+void determineRowAndCol(enum goalEnum goal, int k, int arraySize, int *rowCount,
+                        int *colCount);
+
 /**
  * Checks the validity of arguments passed, reads and parses info in files
  * and starts the implementation of spectral k-means clustering
@@ -95,6 +101,8 @@ double **checkArgs(int argc, char **origArgv, int isCAPI, int *returnRowCount,
     ASSERT_ARGS(goal != INVALID)
 
     dArraySizeInfo = calloc(2, sizeof(int));
+    ASSERT_ERROR(dArraySizeInfo != NULL)
+
 
     /** process the datapoint file, and return info about their amount (arraySize)
      * and number of properties (d) */
@@ -106,33 +114,42 @@ double **checkArgs(int argc, char **origArgv, int isCAPI, int *returnRowCount,
 
     ASSERT_ARGS(k < arraySize)
 
+    BEEP(1)
+
     /** initialize the process to achieve the provided goal */
     ret_matrix = initProcess(&k, d, arraySize, goal, &datapoint, isCAPI);
 
+    BEEP(2)
+
     /** Determining row and col size for return matrix */
-    switch (goal) {
-        case jacobi:{
-            *returnRowCount = arraySize + 1;
-            *returnColCount = arraySize;
-            break;
-        }
-        case spk:{
-            *returnRowCount = arraySize;
-            *returnColCount = k;
-            break;
-        }
-        default:{
-            *returnRowCount = arraySize;
-            *returnColCount = arraySize;
-            break;
-        }
-    }
+    determineRowAndCol(goal, k, arraySize, returnRowCount, returnColCount);
 
     /** Free allocated memory and terminate*/
     free(datapoint);
     free(datap_array);
 
     return ret_matrix;
+}
+
+void determineRowAndCol(enum goalEnum goal, int k, int arraySize, int *rowCount,
+                        int *colCount) {
+    switch (goal) {
+        case jacobi:{
+            *rowCount = arraySize + 1;
+            *colCount = arraySize;
+            break;
+        }
+        case spk:{
+            *rowCount = arraySize;
+            *colCount = k;
+            break;
+        }
+        default:{
+            *rowCount = arraySize;
+            *colCount = arraySize;
+            break;
+        }
+    }
 }
 
 /**
@@ -199,9 +216,8 @@ void processDatapoints(char *filename, double **datap_array, double ***datapoint
 
     *datapoint = arrayToTwoDimArray(datap_array, arraySize, d);
 
-    *dArraySizeInfo[0] = d;
-    *dArraySizeInfo[1] = arraySize;
-
+    (*dArraySizeInfo)[0] = d;
+    (*dArraySizeInfo)[1] = arraySize;
 }
 
 /**
@@ -291,11 +307,15 @@ goalBasedProcess(int *k, int d, int arraySize, double ***datapoint,
     jacobiMatrix = calcJacobi(arraySize, &normLaplacianMatrix);
 
     /** TODO: if Python, we should return to implement K-Means++*/
+    BEEP(3)
+
     spkMatrix = calcSpectralClusters(k, arraySize, 0, &jacobiMatrix);
 
+    BEEP(4)
+
     freeMatrix(&weightedAdjMatrix);
-    free(diagDegMatrix);
-//    freeMatrix(&diagDegMatrix);
+//    free(diagDegMatrix);
+    freeMatrix(&diagDegMatrix);
     freeMatrix(&normLaplacianMatrix);
     freeMatrix(&jacobiMatrix);
     return spkMatrix;
@@ -365,7 +385,7 @@ static double **arrayToTwoDimArray(double **array, int n, int m) {
  * @param n - # of rows
  * @param m - # of cols
  */
-static double ** createMatrix(int n, int m) {
+double ** createMatrix(int n, int m) {
     double *array;
     array = calloc(n*m, sizeof (double ));
     ASSERT_ERROR(array != NULL)
@@ -776,7 +796,7 @@ calcSpectralClusters(int *k, int arraySize, int isCAPI,
     sortJacobi(arraySize, jacobiMatrix);
 
     /** determine k (if k==0) AND change k variable accordingly, important for CAPI */
-    if(k == 0){
+    if(*k == 0){
         (*k) = getK(arraySize, jacobiMatrix);
     }
 
@@ -792,7 +812,7 @@ calcSpectralClusters(int *k, int arraySize, int isCAPI,
 
     //TODO: free memory and finish
 
-    return NULL;
+    return T;
 }
 
 double ** KMeansAlgorithm(int k, int *d, int arraySize, double ***datapoints,

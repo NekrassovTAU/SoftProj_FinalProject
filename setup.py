@@ -7,5 +7,5 @@ setup(
     description='spkmeans module created in C',
     install_requires=['invoke'],
     packages=find_packages(),
-    ext_modules=[Extension('spkmeansmodule', ['spkmeansmodule.c'], include_dirs=['include'])]
+    ext_modules=[Extension('spkmeansmodule', ['spkmeansmodule.c', 'spkmeans.c'], include_dirs=['include'])]
 )
