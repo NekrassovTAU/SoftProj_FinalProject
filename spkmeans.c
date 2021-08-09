@@ -297,7 +297,7 @@ goalBasedProcess(int *k, int d, int arraySize, double ***datapoint,
     }
 
     normLaplacianMatrix = calcNormLaplacian(arraySize, &weightedAdjMatrix,
-                                            diagDegMatrix);
+                                            &diagDegMatrix);
     if (goal == lnorm) {
         freeMatrix(&weightedAdjMatrix);
         freeMatrix(&diagDegMatrix);
@@ -519,7 +519,7 @@ double **calcDiagDegMatrix(int arraySize, double ***weightedAdjMatrix) {
  * @return The norm laplacian matrix
  */
 double ** calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
-                         double **diagDegMatrix) {
+                         double ***diagDegMatrix) {
 
     int i, j;
     double value, **normLaplacianMatrix;
@@ -528,7 +528,7 @@ double ** calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
 
 
     for (i = 0; i < arraySize; i++) {
-        diagDegMatrix[0][i] = 1 / sqrt(diagDegMatrix[0][i]);
+        (*diagDegMatrix)[0][i] = 1 / sqrt((*diagDegMatrix)[0][i]);
     }
 
     /**  sqrtDegMatrix[i][j] == sqrtDeg[i] * weight[i][j] * sqrtDeg[j]
@@ -539,7 +539,7 @@ double ** calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
         (normLaplacianMatrix)[i][i] = 1;
         for (j = i + 1; j < arraySize; j++) {
 
-            value = -diagDegMatrix[0][i] * (*weightedAdjMatrix)[i][j] * diagDegMatrix[0][j];
+            value = -(*diagDegMatrix)[0][i] * (*weightedAdjMatrix)[i][j] * (*diagDegMatrix)[0][j];
             (normLaplacianMatrix)[i][j] = value;
             (normLaplacianMatrix)[j][i] = value;
         }
@@ -797,7 +797,7 @@ calcSpectralClusters(int *k, int arraySize, int isCAPI,
 
     /** determine k (if k==0) AND change k variable accordingly, important for CAPI */
     if(*k == 0){
-        (*k) = getK(arraySize, jacobiMatrix);
+        *k = getK(arraySize, jacobiMatrix);
     }
 
     /** get k first eigenvectors from jacobi into U, normalize U */
@@ -1014,7 +1014,7 @@ void sortEigenVectors(int arraySize, double ***jacobiMatrix, double **combined) 
     double **pointer, **tmpMatrix = createMatrix(arraySize + 1, arraySize);
 
     for(j = 0; j < arraySize; j++){                 // use temp t
-        column = combined[1][j];
+        column = (int) combined[1][j];
         for(i = 0; i < arraySize + 1; i++){
                 tmpMatrix[i][j] = (*jacobiMatrix)[i][column];
             }

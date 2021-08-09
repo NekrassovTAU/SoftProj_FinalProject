@@ -35,7 +35,7 @@ double calcWeight(int d, double ***datapoint, int i, int j);
 double ** calcDiagDegMatrix(int arraySize, double ***weightedAdjMatrix);
 
 double ** calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
-                            double **diagDegMatrix);
+                            double ***diagDegMatrix);
 
 double ** calcJacobi(int arraySize, double ***inputMatrix);
 
