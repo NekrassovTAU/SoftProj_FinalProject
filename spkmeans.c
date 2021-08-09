@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
     double **weightdAdjMatrix, **diagDegMatrix, **normLaplacianMatrix, **jacobiMatrix;
 
     // check the calc functions directly
-    TesterToWeight();
+    weightdAdjMatrix = TesterToWeight();
 
     TesterToSortJacobi();
 
@@ -281,7 +281,7 @@ goalBasedProcess(int *k, int d, int arraySize, double ***datapoint,
     }
 
     normLaplacianMatrix = calcNormLaplacian(arraySize, &weightedAdjMatrix,
-                                            &diagDegMatrix);
+                                            diagDegMatrix);
     if (goal == lnorm) {
         freeMatrix(&weightedAdjMatrix);
         freeMatrix(&diagDegMatrix);
@@ -294,7 +294,8 @@ goalBasedProcess(int *k, int d, int arraySize, double ***datapoint,
     spkMatrix = calcSpectralClusters(k, arraySize, 0, &jacobiMatrix);
 
     freeMatrix(&weightedAdjMatrix);
-    freeMatrix(&diagDegMatrix);
+    free(diagDegMatrix);
+//    freeMatrix(&diagDegMatrix);
     freeMatrix(&normLaplacianMatrix);
     freeMatrix(&jacobiMatrix);
     return spkMatrix;
@@ -438,7 +439,7 @@ double calcWeight(int d, double ***datapoint, int i, int j) {
         value += pow(((*datapoint)[i][t] - (*datapoint)[j][t]), 2);
     }
 
-   value = exp(sqrt(value) / (-2)); // currently exp sets value to 0 - work it out
+    value = exp(sqrt(value) / (-2)); // currently exp sets value to 0 - work it out
 
     return value;
 }
@@ -450,7 +451,8 @@ double calcWeight(int d, double ***datapoint, int i, int j) {
  * @param weightedAdjMatrix - 2-D array containing all the weights
 
  */
-double ** calcDiagDegMatrix(int arraySize, double ***weightedAdjMatrix) {
+ /** 2-D array */
+/* double ** calcDiagDegMatrix(int arraySize, double ***weightedAdjMatrix) {
 
     int i, j;
     double sumofweights, **diagDegMatrix;
@@ -467,6 +469,25 @@ double ** calcDiagDegMatrix(int arraySize, double ***weightedAdjMatrix) {
 
     return diagDegMatrix;
 }
+*/
+
+double **calcDiagDegMatrix(int arraySize, double ***weightedAdjMatrix) {
+
+    int i, j;
+    double sumofweights, **diagDegMatrix;
+
+    diagDegMatrix = createMatrix(1, arraySize);
+
+    for (i = 0; i < arraySize; i++) {
+        sumofweights = 0;
+        for (j = 0; j < arraySize; j++) {
+            sumofweights += (*weightedAdjMatrix)[i][j];
+        }
+        diagDegMatrix[0][i] = sumofweights;
+    }
+
+    return diagDegMatrix;
+}
 
 /**
  * Takes the weighted and the diagonal matrices info,
@@ -478,19 +499,16 @@ double ** calcDiagDegMatrix(int arraySize, double ***weightedAdjMatrix) {
  * @return The norm laplacian matrix
  */
 double ** calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
-                         double ***diagDegMatrix) {
+                         double **diagDegMatrix) {
 
     int i, j;
-    double value, *sqrtDegMatrix, **normLaplacianMatrix;
+    double value, **normLaplacianMatrix;
 
     normLaplacianMatrix = createMatrix(arraySize, arraySize);
 
-    /** 1-D array represents sqrt of diagDegMatrix */
-    sqrtDegMatrix = calloc(arraySize, sizeof(double));
-    ASSERT_ERROR(sqrtDegMatrix != NULL)
 
     for (i = 0; i < arraySize; i++) {
-        sqrtDegMatrix[i] = 1 / sqrt((*diagDegMatrix)[i][i]);
+        diagDegMatrix[0][i] = 1 / sqrt(diagDegMatrix[0][i]);
     }
 
     /**  sqrtDegMatrix[i][j] == sqrtDeg[i] * weight[i][j] * sqrtDeg[j]
@@ -500,13 +518,12 @@ double ** calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
     for (i = 0; i < arraySize; i++) {
         (normLaplacianMatrix)[i][i] = 1;
         for (j = i + 1; j < arraySize; j++) {
-            value = -(sqrtDegMatrix[i] * (*weightedAdjMatrix)[i][j] * sqrtDegMatrix[j]);
+
+            value = -diagDegMatrix[0][i] * (*weightedAdjMatrix)[i][j] * diagDegMatrix[0][j];
             (normLaplacianMatrix)[i][j] = value;
             (normLaplacianMatrix)[j][i] = value;
         }
     }
-
-    free(sqrtDegMatrix);
 
     return normLaplacianMatrix;
 }
@@ -931,7 +948,7 @@ void mergeSort(double **jacobiMatrix, double ***combined, double ***tmp, int low
 
 
 
-void merge(double **jacobiMatrix, double ***combined, int ***tmp, int low, int mid, int high){
+void merge(double **jacobiMatrix, double ***combined, double ***tmp, int low, int mid, int high){
     int l1, l2, i;
 
     for(l1 = low, l2 = mid+1, i = low; l1 <= mid && l2 <= high; i++) {
@@ -1134,7 +1151,7 @@ void TesterToSortJacobi(){
 }
 
 /** the method calculate weighted Adj Matrix on RANDOM Matrix */
-void TesterToWeight(){
+double **TesterToWeight(){
     double **matrix, **weightedAdjMatrix;
     int d = 3, arraySize = 6;
 
@@ -1142,11 +1159,14 @@ void TesterToWeight(){
     printf("\nRandom Matrix:\n");
     printTest(matrix, arraySize, d);
 
-    double **weightdAdjMatrix = calcWeightedAdjMatrix(d, arraySize, &matrix);
+    weightedAdjMatrix = calcWeightedAdjMatrix(d, arraySize, &matrix);
     printf("\nWeighted Adj Matrix:\n");
-    printTest(weightdAdjMatrix, arraySize, arraySize);
+    printTest(weightedAdjMatrix, arraySize, arraySize);
 
+    return weightedAdjMatrix;
 }
+
+
 
 /** creates random n*m matrix */
 double **randomMatrix(int n, int m) {

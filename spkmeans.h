@@ -35,7 +35,7 @@ double calcWeight(int d, double ***datapoint, int i, int j);
 double ** calcDiagDegMatrix(int arraySize, double ***weightedAdjMatrix);
 
 double ** calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
-                            double ***diagDegMatrix);
+                            double **diagDegMatrix);
 
 double ** calcJacobi(int arraySize, double ***inputMatrix);
 
@@ -62,7 +62,7 @@ calcSpectralClusters(int *k, int arraySize, int isCAPI, double ***jacobiMatrix);
 /***/
 void sortJacobi(int arraySize, double ***jacobiMatrix);
 void mergeSort(double **jacobiMatrix, double ***combined, double ***tmp, int low, int high);
-void merge(double **jacobiMatrix, double ***combined, int ***tmp, int low, int mid, int high);
+void merge(double **jacobiMatrix, double ***combined, double ***tmp, int low, int mid, int high);
 void sortEigenVectors(int arraySize, double ***jacobiMatrix, double **combined);
 
 /***/
@@ -97,7 +97,7 @@ void printTest(double **matrix, int n, int m);
 
 void TesterToSortJacobi();
 
-void TesterToWeight();
+double **TesterToWeight();
 
 double **randomMatrix(int n, int m);
 
