@@ -16,7 +16,14 @@ double **
 goalBasedProcess(int *k, int d, int arraySize, double ***datapoint,
                  enum goalEnum goal, int isCAPI);
 
-void printResult(double ***retArray, enum goalEnum goal);
+void printResult(double ***retArray, enum goalEnum goal, int arraySize);
+
+void printRegular(double ***retArray,int arraySize);
+
+void printJacobi(double ***retArray, int arraySize);
+
+void printDiagonal(double ***retArray , int arraySize);
+
 
 static enum goalEnum checkGoal(char *string);
 

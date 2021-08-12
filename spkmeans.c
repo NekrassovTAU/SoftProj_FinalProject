@@ -31,7 +31,7 @@
  * main, a shell function for the spectral clustering algorithm implementation
  */
 int main(int argc, char *argv[]) {
-//    checkArgs(argc, argv, 0);
+    checkArgs(argc, argv, 0, NULL, NULL);
 /*
     int i;
     double **arr, **Atag, **V, **jacobiMatrix, *jacobiArray;
@@ -61,13 +61,14 @@ int main(int argc, char *argv[]) {
       printf("\n\n");
       printTest(jacobiMatrix, 4, 3);
 */
+/*
     double **weightdAdjMatrix, **diagDegMatrix, **normLaplacianMatrix, **jacobiMatrix;
 
     // check the calc functions directly
     weightdAdjMatrix = TesterToWeight();
 
     TesterToSortJacobi();
-
+*/
     return 0;
 }
 
@@ -247,7 +248,8 @@ initProcess(int *k, int d, int arraySize, enum goalEnum goal,
     /** Freeing memory and returning/printing the result */
 
     if (!isCAPI) {
-        printResult(&ret_matrix, goal);
+        printf("\n*\n*\n*array size is : %d\n*\n*\n*\n*\n***", arraySize);
+        printResult(&ret_matrix, goal, arraySize);
         free(ret_matrix);
         return NULL;
     } else {
@@ -280,6 +282,7 @@ goalBasedProcess(int *k, int d, int arraySize, double ***datapoint,
      * in case of goal == jacobi, we get a symmetric matrix that we need to
      * apply the Jacobi algorithm on
      */
+
     if (goal == jacobi){
         jacobiMatrix = calcJacobi(arraySize, datapoint);
         return jacobiMatrix;
@@ -331,9 +334,95 @@ goalBasedProcess(int *k, int d, int arraySize, double ***datapoint,
  * @param retArray - pointer to matrix to be printed to user
  * @param goal - distinguishes between spk-printing and matrix-printing
  */
-void printResult(double ***retArray, enum goalEnum goal) {
+void printResult(double ***retArray, enum goalEnum goal, int arraySize) {
     /* TODO: implement function */
+    printf("check2");
+
+    if((goal == wam) || (goal == lnorm)){
+        printRegular(retArray, arraySize);
+    }
+    if(goal == jacobi){
+        printJacobi(retArray, arraySize);
+    }
+    if(goal == ddg) {
+        printDiagonal(retArray, arraySize);
+    }
+    if(goal == spk){
+        // TODO
+    }
 }
+
+/** regular (rows * columns) Matrix */
+void printRegular(double ***retArray, int arraySize){
+
+    int i, j;
+
+    for(i = 0; i < arraySize; i++){
+        for(j = 0; j < arraySize; j++){
+            printf("%.4f", (*retArray)[i][j]);
+            if (j != arraySize - 1){   /* not last in the line */
+                printf("%s", ",");
+            }
+            else{
+                printf("\n");
+            }
+        }
+    }
+}
+
+/** Transporse the matrix (beside the first line) while printing */
+void printJacobi(double ***retArray, int arraySize) {
+    printf("check3");
+    int i, j;
+
+    /** print the eigenValues - first line */
+    for (j = 0; j < arraySize; j++) {
+        printf("%.4f", (**retArray)[j]);
+        if (j != arraySize - 1) {   /* not last component of the cluster*/
+            printf("%s", ",");
+        } else {
+            printf("\n");
+        }
+    }
+
+    /** print the eigenVectors - each verctor as a row */
+    for (j = 0; j < arraySize; j++) {
+        for (i = 1; i < arraySize + 1; i++) {
+            printf("%.4f", (*retArray)[i][j]);
+            if (i != arraySize) {
+                printf("%s", ",");
+            } else {
+                printf("\n");
+            }
+        }
+    }
+}
+
+
+/** print the diagonal matrix - fill with 0's */
+void printDiagonal(double ***retArray, int arraySize) {
+
+    int i, j;
+
+    for(i = 0; i < arraySize; i++){
+        for(j = 0; j < arraySize; j++){
+            if(i == j){
+                printf("%.4f", (**retArray)[i]);
+            }
+            else{
+                printf("0.0000");
+            }
+            if (j != arraySize - 1){   /* not last component of the cluster*/
+                printf("%s", ",");
+            }
+            else{
+                printf("\n");
+            }
+        }
+    }
+}
+
+
 
 /**
  * Checks goal string and returns enum accordingly
@@ -581,14 +670,14 @@ double ** calcJacobi(int arraySize, double ***inputMatrix) {
         }
     } while (!converge || (iterations < 100)); // as long as (delta > epsilon) or number of iterations is under 100
 
-
     /** Atag has the A"A
  *  V has the V"A */
 
     jacobiMatrix = copyJacoby(arraySize, &Atag, &V);
 
     freeMatrix(&Atag);
-    freeMatrix(&V);
+    /** TODO: FIX NEXT LINE. PROBLEM IN FREE V - when i run threw terminal it doesn't get to the return */
+    // freeMatrix(&V);
 
     return jacobiMatrix;
 }
@@ -602,6 +691,7 @@ double ** calcJacobi(int arraySize, double ***inputMatrix) {
  * @return The jacobi matrix
  */
 double **copyJacoby(int arraySize, double ***Atag, double ***V) {
+
     int i, j;
     double **jacobiMatrix;
 

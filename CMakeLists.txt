@@ -7,6 +7,6 @@ include_directories(${PYTHON_INCLUDE_DIRS})
 
 add_executable(SoftProj_Final spkmeans.c )
 
-add_library(spkmeans.h spkmeansmodule.c)
+add_library(spkmeans.h spkmeansmodule.c spkmeans.c)
 
 target_link_libraries(spkmeans.h spkmeansmodule.c ${PYTHON_LIBRARIES})
