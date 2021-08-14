@@ -658,17 +658,22 @@ double ** calcJacobi(int arraySize, double ***inputMatrix) {
     /** run until convergence -  */
 
     A = (*inputMatrix);
+    copymatrix(arraySize, &A, &Atag);
 
+    printTest(*inputMatrix, arraySize, arraySize);
     do {
         findmatrixP(arraySize, &A, &c, &s, &row, &col); // P
+        printf("\n**** c = %f, s = %f, row = %d, col = %d\n", c,s,row,col);
         updateAtag(arraySize, &Atag, &A, c, s, row, col); // A' = P^T * A * P
+        printf("Atag is :\n");
+        printTest(Atag, arraySize,arraySize);
         updateV(arraySize, &V, c, s, row, col);  // V *= P
         converge = convergenceCheck(arraySize, &A, &Atag);
         iterations++;
         if(!converge && (iterations < 100)) {
             copymatrix(arraySize, &Atag, &A); // A = Atag
         }
-    } while (!converge || (iterations < 100)); // as long as (delta > epsilon) or number of iterations is under 100
+    } while (!converge && (iterations < 100)); // as long as (delta > epsilon) or number of iterations is under 100
 
     /** Atag has the A"A
  *  V has the V"A */
@@ -736,10 +741,16 @@ double calcOff(int arraySize, double ***matrix){
     double off = 0;
     int i, j;
     for(i = 0; i < arraySize; i++){
+        off += pow((*matrix)[i][i],2);
         for(j = i+1; j < arraySize; j++){
             off += (2 * pow((*matrix)[i][j],2));
         }
     }
+    off = sqrt(off);
+    for(i = 0; i < arraySize; i++) {
+        off -= pow((*matrix)[i][i], 2);
+    }
+
     return off;
 }
 
@@ -1038,7 +1049,6 @@ void sortJacobi(int arraySize, double ***jacobiMatrix) {
     sortEigenVectors(arraySize, jacobiMatrix, combined);                                // sort the eigenVectors respectively
 
 }
-
 
 
 
