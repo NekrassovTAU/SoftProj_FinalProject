@@ -585,32 +585,6 @@ double calcWeight(int d, double ***datapoint, int i, int j) {
     return value;
 }
 
-/**
- * Takes the weightedAdjMatrix, and returns the diagonal degree matrix
- * corresponding to it
- * @param arraySize - amount of datapoints
- * @param weightedAdjMatrix - 2-D array containing all the weights
-
- */
- /** 2-D array */
-/* double ** calcDiagDegMatrix(int arraySize, double ***weightedAdjMatrix) {
-
-    int i, j;
-    double sumofweights, **diagDegMatrix;
-
-    diagDegMatrix = createMatrix(arraySize, arraySize);
-
-    for (i = 0; i < arraySize; i++) {
-        sumofweights = 0;
-        for (j = 0; j < arraySize; j++) {
-            sumofweights += (*weightedAdjMatrix)[i][j];
-        }
-        (diagDegMatrix)[i][i] = sumofweights;
-    }
-
-    return diagDegMatrix;
-}
-*/
 
 double **calcDiagDegMatrix(int arraySize, double ***weightedAdjMatrix) {
 
@@ -697,7 +671,7 @@ double ** calcJacobi(int arraySize, double ***inputMatrix) {
 
         findmatrixP(arraySize, &A, &c, &s, &row, &col); // P
         printf("\n**** c = %f, s = %f, row = %d, col = %d\n", c,s,row,col);
-        updateAtag(arraySize, &A, c, s, row, col); // A' = P^T * A * P
+        updateAtag(arraySize, &A, c, s, row, col, &offAtag); // A' = P^T * A * P
         printf("Atag is :\n");
         printTest(A, arraySize, arraySize);
         updateV(arraySize, &V, c, s, row, col);  // V *= P
@@ -866,7 +840,7 @@ void findMaxOffDiag(int arraySize, double ***A, int *row, int *col) {
  * @param row - row index of the max value in Atag (off diag)
  * @param col - col index of the max value in Atag (off diag)
  */
-void updateAtag(int arraySize, double ***A, double c, double s, int row, int col) {
+void updateAtag(int arraySize, double ***A, double c, double s, int row, int col, double *offAtag) {
 
     int r;
     double ri, rj, ij, ii, jj;
@@ -882,6 +856,8 @@ void updateAtag(int arraySize, double ***A, double c, double s, int row, int col
             (*A)[row][r] = (*A)[r][row];
             (*A)[r][col] = (c * rj) + (s * ri);
             (*A)[col][r] = (*A)[r][col];
+
+            *offAtag += 2 * ((*A)[r][row] * (*A)[r][row] + (*A)[r][col] * (*A)[r][col]) - 2 * (ri * ri + rj * rj);
         }
     }
     /**  Atag[i,i] / Atag[j,j]/ Atag[i,j] / Atag[j,i] */
@@ -893,6 +869,8 @@ void updateAtag(int arraySize, double ***A, double c, double s, int row, int col
     (*A)[col][col] = (s * s * ii) + (c * c * jj) + (2 * s * c * ij);
     (*A)[row][col] = 0;
     (*A)[col][row] = 0;
+
+    *offAtag -= 2 * (ij * ij);
 }
 
 /**
@@ -1111,120 +1089,6 @@ calcDatapointCentroids(double ***datapoints, int **datap_cluster_assignment,
 
 
 
-
-
-
-/**
- * Sort the jacobiMatrix eigenValues by ascending order, and the eigenVectors respectively
- * @param arraySize - amount of datapoints
- * @param jacobiMatrix - jacobi matrix which includes eigenValues and EigenVectors
- */
- /*
-void sortJacobi(int arraySize, double ***jacobiMatrix) {
-    int i;
-    int *newIndex = (int *) calloc(arraySize, sizeof(int));        // keeps the new index of each eigenValue
-    double *eigenValuesSorted = calloc(arraySize, sizeof(double)); // temp array to keep the eigenvalues sorted
-
-    for (i = 0; i < arraySize; i++){
-        newIndex[i] = -1;
-    }
-
-    mergeSort(*jacobiMatrix, &eigenValuesSorted, &newIndex, 0, arraySize - 1); // sort the eigen values
-
-    printf("\n The newIndex 1-D array: \n ");
-    print1Darray(newIndex, arraySize);
-    printf("\neigenValues sorted: \n");
-    printTest(*jacobiMatrix, arraySize+1, arraySize);
-
-    sortEigenVectors(arraySize, jacobiMatrix, newIndex);                                // sort the eigenVectors respectively
-
-    free(newIndex);
-    free(eigenValuesSorted);
-}
-*/
-
-/**
- * sort the eigenValues (first row) of the jacobiMatrix, and keeps the have been changed
- * @param jacobiMatrix - jacobi matrix which includes eigenValues and EigenVectors
- * @param eigenValuesSorted - 2-D array to be calculated
- * @param newIndex - pointer to 1-D array for keeping the new indices of the eigenValues that changed place
- * @param low - the index of the leftMost eigenValue to be sorted
- * @param high - the index of the rightMost eigenValue to be sorted
- */
- /*
-void mergeSort(double **jacobiMatrix, double **eigenValuesSorted, int **newIndex, int low, int high){
-    int mid;
-
-    if(low < high){
-        mid = (low + high) / 2;
-        mergeSort(jacobiMatrix, eigenValuesSorted, newIndex, low, mid);
-        mergeSort(jacobiMatrix, eigenValuesSorted, newIndex, mid + 1, high);
-        merge(jacobiMatrix, eigenValuesSorted, newIndex, low, mid, high);
-    }
-    else{
-        return;
-    }
-}
-*/
-/**
- *  Merge between two soretd slices - (low,mid) & (mid+1, high)
- * @param jacobiMatrix - jacobi matrix which includes eigenValues and EigenVectors
- * @param eigenValuesSorted - pointer to 1-D array for keeping the eigenValues sorted
- * @param newIndex - pointer to 1-D array for keeping the new indices of the eigenValues that changed place
- * @param low - the index of the leftMost eigenValue in the "1'st array" to be merged
- * @param mid - the index of the right most eigenValue in the "1'st array" to be merged
- * @param high - the index of the right most eigenValue in the "2'nd array" to be merged
- */
- /*
-void merge(double **jacobiMatrix, double **eigenValuesSorted, int **newIndex, int low, int mid, int high){
-    int l1, l2, i;
-
-    for(l1 = low, l2 = mid+1, i = low; l1 <= mid && l2 <= high; i++) {
-
-        if ((*jacobiMatrix)[l1] <= (*jacobiMatrix)[l2]) {
-
-            (*eigenValuesSorted)[i] = (*jacobiMatrix)[l1];
-            if ((i == l1 && (*newIndex)[l1] != -1) || i != l1) { // i=l1 but we update the index not for the first time, or i!=l1 so update it anyway
-                (*newIndex)[l1] = i;
-            }
-            l1++;
-        }
-        else {
-
-            (*eigenValuesSorted)[i] = (*jacobiMatrix)[l2];
-            if ((i == l2 && (*newIndex)[l2] != -1) || i != l2) { // i=l2 but we update the index not for the same time, or i!=l2 so update it anyway
-                (*newIndex)[l2] = i;
-            }
-            l2++;
-        }
-    }
-
-    while(l1 <= mid){  // copy the rest of the "1'st array"
-        (*eigenValuesSorted)[i] = (*jacobiMatrix)[l1];
-        if ((i == l1 && (*newIndex)[l1] != -1) || i != l1) { // i=l1 but we update the index not for the same time, or i!=l1 so update it anyway
-            (*newIndex)[l1] = i;
-        }
-        i++;
-        l1++;
-    }
-
-    while(l2 <= high){ // copy the rest of the "2'nd array"
-        (*eigenValuesSorted)[i] = (*jacobiMatrix)[l2];
-        if ((i == l2 && (*newIndex)[l2] != -1) || i != l2) {  // i=l2 but we update the index not for the same time, or i!=l2 so update it anyway
-            (*newIndex)[l2] = i;
-        }
-        i++;
-        l2++;
-    }
-
-    for(i = low; i <= high; i++){    // copy the eigenValues from the temp array, back to the original jacobiMatrix
-        (*jacobiMatrix)[i] = (*eigenValuesSorted)[i];
-    }
-}
-*/
-/*********************************************************************************************************/
-
-
 void sortJacobi(int arraySize, double ***jacobiMatrix, double ***combined) {
     int i;
 
@@ -1326,39 +1190,6 @@ void sortEigenVectors(int arraySize, double ***jacobiMatrix, double **combined) 
                                 */
 }
 
-/*********************************************************************************************************/
-
-/**
- *  Sort the eigenVectors (columns) of the jacobiMatrix respectively to the eigenValues
- * @param arraySize - amount of datapoints
- * @param jacobiMatrix - jacobi matrix which includes eigenValues and EigenVectors
- * @param newIndex - 1-D array with che changes in eigenValues indices
- */
- /*
-void sortEigenVectors(int arraySize, double ***jacobiMatrix, int *newIndex){
-    int i, j;
-    double **tmpMatrix = createMatrix(arraySize, arraySize);
-
-    for(j = 0; j < arraySize; j++){                 // use temp matrix to save the eigenVectors that their eigenValues changed place earlier
-        if(newIndex[j] != -1){     // switch
-           for(i = 0; i < arraySize; i++){
-               tmpMatrix[i][newIndex[j]] = (*jacobiMatrix)[i+1][j];
-           }
-        }
-    }
-
-    // could change the pointer instead
-    for(j = 0; j < arraySize; j++){   // update the places of the eigenvectors in the jacobiMatrix.
-        if(newIndex[j] != -1){ // the current column changed place during the sort
-            for(i = 0; i < arraySize; i++){
-                (*jacobiMatrix)[i+1][j] = tmpMatrix[i][j];
-            }
-        }
-    }
-
-    freeMatrix(&tmpMatrix);
-}
-*/
 
 /**
  * Returns K based on the biggest difference between two adjacent eigenValues
@@ -1393,18 +1224,12 @@ double **getMatrixU(int k, int arraySize, double ***jacobiMatrix, double **combi
 
     /** take the first K eigenVectors if the jacobi was sorted by the eigenValue */
     for(j = 0; j < k; j++){
-        col = combined[1][j]; // The original index of the j eigenValue is sorted order
+        col = (int) combined[1][j]; // The original index of the j eigenValue is sorted order
         for(i = 0; i < arraySize; i++){
             U[i][j] = (*jacobiMatrix)[i+1][col];
         }
     }
-    /** JacobiMatrix is sorted
-    for(i = 0; i < arraySize; i++){
-        for(j = 0; j < k; j++){
-            U[i][j] = (*jacobiMatrix)[i+1][j];
-        }
-    }
-     */
+
     return U;
 }
 
