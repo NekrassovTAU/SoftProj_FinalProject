@@ -648,18 +648,16 @@ double ** calcJacobi(int arraySize, double ***inputMatrix) {
     int row, col, converge, iterations = 0;
     double c, s, epsilon = EPSILON;
     double offA, offAtag;
-    double **A, **Atag, **V, **jacobiMatrix;
+    double **A, **V, **jacobiMatrix;
 
     /** initialization */
-    Atag = createMatrix(arraySize, arraySize);
     V = createMatrix(arraySize, arraySize);
 
     makeIntoIdentityMatrix(&V, arraySize);
 
     /** run until convergence -  */
     A = (*inputMatrix);
-    copymatrix(arraySize, &A, &Atag); // Atag = A
-    offAtag = calcOff(arraySize, &Atag);
+    offAtag = calcOff(arraySize, &A);
 
     printTest(*inputMatrix, arraySize, arraySize);
     do {
@@ -667,33 +665,30 @@ double ** calcJacobi(int arraySize, double ***inputMatrix) {
 
         findmatrixP(arraySize, &A, &c, &s, &row, &col); // P
         printf("\n**** c = %f, s = %f, row = %d, col = %d\n", c,s,row,col);
-        updateAtag(arraySize, &Atag, &A, c, s, row, col); // A' = P^T * A * P
+        updateAtag(arraySize, &A, c, s, row, col); // A' = P^T * A * P
         printf("Atag is :\n");
-        printTest(Atag, arraySize,arraySize);
+        printTest(A, arraySize, arraySize);
         updateV(arraySize, &V, c, s, row, col);  // V *= P
         printf("\nV is :\n");
         printTest(V, arraySize,arraySize);
 
         /** instead of calculating both just calculate one, and update the sec at the first line */
-        offAtag = calcOff(arraySize, &Atag);
+        offAtag = calcOff(arraySize, &A);
         converge = (offA - offAtag) < epsilon ? 1 : 0;
-       // converge = convergenceCheck(arraySize, &A, &Atag);
-        iterations++;
-        if(!converge && (iterations < 100)) {
 
-            copymatrix(arraySize, &Atag, &A); // A = Atag
-        }
+        iterations++;
+
      } while (!converge && (iterations < 100)); // as long as (delta > epsilon) or number of iterations is under 100
 
     /** Atag has the A"A
       *  V has the V"A */
     printf("\n\n eigenValues are:\n\n");
-    printTest(Atag,arraySize,arraySize);
+    printTest(A,arraySize,arraySize);
     printf("\n\n eigenVectors are:\n\n");
     printTest(V,arraySize,arraySize);
-    jacobiMatrix = copyJacoby(arraySize, &Atag, &V);
+    jacobiMatrix = copyJacoby(arraySize, &A, &V);
 
-    freeMatrix(&Atag);
+    freeMatrix(&A);
     /** TODO: FIX NEXT LINE. PROBLEM IN FREE V - when i run threw terminal it doesn't get to the return */
     // freeMatrix(&V);
 
@@ -838,7 +833,7 @@ void findMaxOffDiag(int arraySize, double ***A, int *row, int *col) {
  * @param row - row index of the max value in Atag (off diag)
  * @param col - col index of the max value in Atag (off diag)
  */
-void updateAtag(int arraySize, double ***Atag,double ***A, double c, double s, int row, int col) {
+void updateAtag(int arraySize, double ***A, double c, double s, int row, int col) {
 
     int r;
     double ri, rj, ij, ii, jj;
@@ -846,14 +841,14 @@ void updateAtag(int arraySize, double ***Atag,double ***A, double c, double s, i
     /** update each Atag[r,i]/Atag[r,j], for : r != i,j
      * can cut computation in half because the matrix is symmetric */
     for (r = 0; r < arraySize; r++) {
-        ri = (*A)[r][row];
-        rj = (*A)[r][col];
-        if ((r != row) && (r != col)) {
 
-            (*Atag)[r][row] = (c * ri) - (s * rj);
-            (*Atag)[row][r] = (*Atag)[r][row];
-            (*Atag)[r][col] = (c * rj) + (s * ri);
-            (*Atag)[col][r] = (*Atag)[r][col];
+        if ((r != row) && (r != col)) {
+            ri = (*A)[r][row];
+            rj = (*A)[r][col];
+            (*A)[r][row] = (c * ri) - (s * rj);
+            (*A)[row][r] = (*A)[r][row];
+            (*A)[r][col] = (c * rj) + (s * ri);
+            (*A)[col][r] = (*A)[r][col];
         }
     }
     /**  Atag[i,i] / Atag[j,j]/ Atag[i,j] / Atag[j,i] */
@@ -861,10 +856,10 @@ void updateAtag(int arraySize, double ***Atag,double ***A, double c, double s, i
     ii = (*A)[row][row];
     jj = (*A)[col][col];
 
-    (*Atag)[row][row] = (c * c * ii) + (s * s * jj) - (2 * s * c * ij);
-    (*Atag)[col][col] = (s * s * ii) + (c * c * jj) + (2 * s * c * ij);
-    (*Atag)[row][col] = 0;
-    (*Atag)[col][row] = 0;
+    (*A)[row][row] = (c * c * ii) + (s * s * jj) - (2 * s * c * ij);
+    (*A)[col][col] = (s * s * ii) + (c * c * jj) + (2 * s * c * ij);
+    (*A)[row][col] = 0;
+    (*A)[col][row] = 0;
 }
 
 /**

@@ -52,7 +52,7 @@ void findmatrixP(int arraySize, double ***A, double *c, double *s, int *row, int
 
 void findMaxOffDiag(int arraySize, double ***A, int *row, int *col);
 
-void updateAtag(int arraySize, double ***Atag, double ***A, double c, double s, int row, int col);
+void updateAtag(int arraySize, double ***A, double c, double s, int row, int col);
 
 void updateV(int arraySize, double ***V, double c, double s, int row, int col);
 
