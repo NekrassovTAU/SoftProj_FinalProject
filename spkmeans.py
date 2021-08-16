@@ -5,19 +5,18 @@ from spkmeansmodule import initializeCProcess, KMeansPlusPlusIntegration
 
 
 def main():
-
     arguments = sys.argv.copy()
 
-    KMeansPlusPlusIntegration([[1,2,3],[4,5,6],[7,8,9]], [1,2,3])
+    cprocess_results = initializeCProcess(arguments)
 
-    # ret_matrix = initializeCProcess(arguments)
-    #
-    # if sys.argv[2] == "spk":
-    #     init_centroids = k_means_plus_plus(ret_matrix)
-    #     print(init_centroids)
-    #     ret_matrix = KMeansPlusPlusIntegration(ret_matrix, init_centroids)
+    ret_matrix, datapoints = cprocess_results[0], cprocess_results[1]
 
-    #  print_results(ret_matrix)
+    if sys.argv[2] == "spk":
+        init_centroids = k_means_plus_plus(ret_matrix)
+        ret_matrix = KMeansPlusPlusIntegration(ret_matrix, init_centroids,
+                                               datapoints)
+
+    print_results(ret_matrix)
 
 
 # code copied from HW2
