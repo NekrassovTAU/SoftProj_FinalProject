@@ -646,7 +646,8 @@ double ** calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
 double ** calcJacobi(int arraySize, double ***inputMatrix) {
 
     int row, col, converge, iterations = 0;
-    double c, s;
+    double c, s, epsilon = EPSILON;
+    double offA, offAtag;
     double **A, **Atag, **V, **jacobiMatrix;
 
     /** initialization */
@@ -656,28 +657,40 @@ double ** calcJacobi(int arraySize, double ***inputMatrix) {
     makeIntoIdentityMatrix(&V, arraySize);
 
     /** run until convergence -  */
-
     A = (*inputMatrix);
-    copymatrix(arraySize, &A, &Atag);
+    copymatrix(arraySize, &A, &Atag); // Atag = A
+    offAtag = calcOff(arraySize, &Atag);
 
     printTest(*inputMatrix, arraySize, arraySize);
     do {
+        offA = offAtag;
+
         findmatrixP(arraySize, &A, &c, &s, &row, &col); // P
         printf("\n**** c = %f, s = %f, row = %d, col = %d\n", c,s,row,col);
         updateAtag(arraySize, &Atag, &A, c, s, row, col); // A' = P^T * A * P
         printf("Atag is :\n");
         printTest(Atag, arraySize,arraySize);
         updateV(arraySize, &V, c, s, row, col);  // V *= P
-        converge = convergenceCheck(arraySize, &A, &Atag);
+        printf("\nV is :\n");
+        printTest(V, arraySize,arraySize);
+
+        /** instead of calculating both just calculate one, and update the sec at the first line */
+        offAtag = calcOff(arraySize, &Atag);
+        converge = (offA - offAtag) < epsilon ? 1 : 0;
+       // converge = convergenceCheck(arraySize, &A, &Atag);
         iterations++;
         if(!converge && (iterations < 100)) {
+
             copymatrix(arraySize, &Atag, &A); // A = Atag
         }
-    } while (!converge && (iterations < 100)); // as long as (delta > epsilon) or number of iterations is under 100
+     } while (!converge && (iterations < 100)); // as long as (delta > epsilon) or number of iterations is under 100
 
     /** Atag has the A"A
- *  V has the V"A */
-
+      *  V has the V"A */
+    printf("\n\n eigenValues are:\n\n");
+    printTest(Atag,arraySize,arraySize);
+    printf("\n\n eigenVectors are:\n\n");
+    printTest(V,arraySize,arraySize);
     jacobiMatrix = copyJacoby(arraySize, &Atag, &V);
 
     freeMatrix(&Atag);
@@ -741,16 +754,10 @@ double calcOff(int arraySize, double ***matrix){
     double off = 0;
     int i, j;
     for(i = 0; i < arraySize; i++){
-        off += pow((*matrix)[i][i],2);
         for(j = i+1; j < arraySize; j++){
             off += (2 * pow((*matrix)[i][j],2));
         }
     }
-    off = sqrt(off);
-    for(i = 0; i < arraySize; i++) {
-        off -= pow((*matrix)[i][i], 2);
-    }
-
     return off;
 }
 
@@ -869,7 +876,7 @@ void updateAtag(int arraySize, double ***Atag,double ***A, double c, double s, i
  * @param row - row index of the max value in Atag (off diag)
  * @param col - col index of the max value in Atag (off diag)
  */
-void updateV(int arraySize, double ***V, double c, double s, int row, int col) {
+void updateV(int arraySize, double ***V, double c, double s, int row, int col){
 
     int r;
     double ri, rj;
@@ -891,18 +898,18 @@ double **
 calcSpectralClusters(int *k, int arraySize, int isCAPI,
                      double ***jacobiMatrix) {
 
-    double **U, **T, **spkMatrix;
+    double **U, **T, **spkMatrix, **combined = createMatrix(2, arraySize);;
 
-    /** sort jacobi */
-    sortJacobi(arraySize, jacobiMatrix);
+    /** sort jacobi's eigenValues*/
+    sortJacobi(arraySize, jacobiMatrix, &combined);
 
     /** determine k (if k==0) AND change k variable accordingly, important for CAPI */
     if(*k == 0){
         *k = getK(arraySize, jacobiMatrix);
     }
-
+    /** sort jacobi's first K eigenVectors into U */
     /** get k first eigenvectors from jacobi into U, normalize U */
-    U = getMatrixU(*k, arraySize, jacobiMatrix);
+    U = getMatrixU(*k, arraySize, jacobiMatrix, combined);
     normalizeU(*k, arraySize, &U);
     T = U;
 
@@ -1033,21 +1040,21 @@ void merge(double **jacobiMatrix, double **eigenValuesSorted, int **newIndex, in
 /*********************************************************************************************************/
 
 
-void sortJacobi(int arraySize, double ***jacobiMatrix) {
+void sortJacobi(int arraySize, double ***jacobiMatrix, double ***combined) {
     int i;
 
-    double **combined = createMatrix(2, arraySize);
+//    double **combined = createMatrix(2, arraySize);
     double **tmp = createMatrix(2, arraySize);
     for (i = 0; i < arraySize; i++){
-        combined[0][i] = (*jacobiMatrix)[0][i];
-        combined[1][i] = i;
+        (*combined)[0][i] = (*jacobiMatrix)[0][i];
+        (*combined)[1][i] = i;
     }
 
-    mergeSort(*jacobiMatrix, &combined, &tmp, 0, arraySize - 1); // sort the eigen values
-    printf("\n combined Matrix: \n");
-    printTest(combined,2,arraySize);
-    sortEigenVectors(arraySize, jacobiMatrix, combined);                                // sort the eigenVectors respectively
+    mergeSort(*jacobiMatrix, combined, &tmp, 0, arraySize - 1); // sort the eigen values
 
+    /** Alternative way : sort only the first K eigenVectors (so find K first)
+    sortEigenVectors(arraySize, jacobiMatrix, combined);                                // sort the eigenVectors respectively
+    */
 }
 
 
@@ -1134,9 +1141,7 @@ void sortEigenVectors(int arraySize, double ***jacobiMatrix, double **combined) 
                                 */
 }
 
-
 /*********************************************************************************************************/
-
 
 /**
  *  Sort the eigenVectors (columns) of the jacobiMatrix respectively to the eigenValues
@@ -1196,16 +1201,25 @@ int getK(int arraySize, double ***jacobiMatrix) {
  * @param arraySize - amount of datapoints
  * @param jacobiMatrix - jacobi matrix which includes eigenValues and EigenVectors
  */
-double **getMatrixU(int k, int arraySize, double ***jacobiMatrix){
+double **getMatrixU(int k, int arraySize, double ***jacobiMatrix, double **combined){
 
-    int i, j;
+    int i, j, col;
     double **U = createMatrix(arraySize, k);
 
+    /** take the first K eigenVectors if the jacobi was sorted by the eigenValue */
+    for(j = 0; j < k; j++){
+        col = combined[1][j]; // The original index of the j eigenValue is sorted order
+        for(i = 0; i < arraySize; i++){
+            U[i][j] = (*jacobiMatrix)[i+1][col];
+        }
+    }
+    /** JacobiMatrix is sorted
     for(i = 0; i < arraySize; i++){
         for(j = 0; j < k; j++){
             U[i][j] = (*jacobiMatrix)[i+1][j];
         }
     }
+     */
     return U;
 }
 
@@ -1262,7 +1276,7 @@ void TesterToSortJacobi(){
     printTest(matrix, 9, 8);
 
     /** sort the matrix by the first line */
-    sortJacobi(8, &matrix);
+//    sortJacobi(8, &matrix);
 
     /** print the sorted Matrix */
     printf("\nThe Sorted Matrix is:\n");

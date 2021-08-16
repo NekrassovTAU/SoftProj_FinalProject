@@ -67,7 +67,7 @@ double **
 calcSpectralClusters(int *k, int arraySize, int isCAPI, double ***jacobiMatrix);
 
 /***/
-void sortJacobi(int arraySize, double ***jacobiMatrix);
+void sortJacobi(int arraySize, double ***jacobiMatrix, double ***combined);
 void mergeSort(double **jacobiMatrix, double ***combined, double ***tmp, int low, int high);
 void merge(double **jacobiMatrix, double ***combined, double ***tmp, int low, int mid, int high);
 void sortEigenVectors(int arraySize, double ***jacobiMatrix, double **combined);
@@ -84,7 +84,7 @@ void sortEigenVectors(int arraySize, double ***jacobiMatrix, int *newIndex);
 */
 int getK(int arraySize, double ***jacobiMatrix);
 
-double **getMatrixU(int k, int arraySize, double ***jacobiMatrix);
+double **getMatrixU(int k, int arraySize, double ***jacobiMatrix, double **combined);
 
 void normalizeU(int k, int arraySize, double ***U);
 
