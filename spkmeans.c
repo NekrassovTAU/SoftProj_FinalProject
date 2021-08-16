@@ -248,7 +248,6 @@ initProcess(int *k, int d, int arraySize, enum goalEnum goal,
     /** Freeing memory and returning/printing the result */
 
     if (!isCAPI) {
-        printf("\n*\n*\n*array size is : %d\n*\n*\n*\n*\n***", arraySize);
         printResult(&ret_matrix, goal, arraySize);
         free(ret_matrix);
         return NULL;
@@ -336,7 +335,6 @@ goalBasedProcess(int *k, int d, int arraySize, double ***datapoint,
  */
 void printResult(double ***retArray, enum goalEnum goal, int arraySize) {
     /* TODO: implement function */
-    printf("check2");
 
     if((goal == wam) || (goal == lnorm)){
         printRegular(retArray, arraySize);
@@ -372,7 +370,7 @@ void printRegular(double ***retArray, int arraySize){
 
 /** Transporse the matrix (beside the first line) while printing */
 void printJacobi(double ***retArray, int arraySize) {
-    printf("check3");
+
     int i, j;
 
     /** print the eigenValues - first line */
@@ -686,6 +684,7 @@ double ** calcJacobi(int arraySize, double ***inputMatrix) {
     printTest(A,arraySize,arraySize);
     printf("\n\n eigenVectors are:\n\n");
     printTest(V,arraySize,arraySize);
+    printf("\n\n final:\n");
     jacobiMatrix = copyJacoby(arraySize, &A, &V);
 
     freeMatrix(&A);
