@@ -17,9 +17,9 @@ double **
 goalBasedProcess(int *k, int d, int arraySize, double ***datapoint,
                  enum goalEnum goal, int isCAPI);
 
-void printResult(double ***retArray, enum goalEnum goal, int arraySize);
+void printResult(double ***retArray, enum goalEnum goal, int arraySize, int k, int d);
 
-void printRegular(double ***retArray,int arraySize);
+void printRegular(double ***retArray,int rows, int cols);
 
 void printJacobi(double ***retArray, int arraySize);
 
@@ -69,9 +69,9 @@ calcSpectralClusters(int *k, int arraySize, int isCAPI, double ***jacobiMatrix,
                      double ***datapoints);
 
 /***/
-void sortJacobi(int arraySize, double ***jacobiMatrix, double ***combined);
-void mergeSort(double **jacobiMatrix, double ***combined, double ***tmp, int low, int high);
-void merge(double **jacobiMatrix, double ***combined, double ***tmp, int low, int mid, int high);
+void sortEigenValues(int arraySize, double ***jacobiMatrix, double ***combined);
+void mergeSort1(double ***combined, double ***tmp, int low, int high);
+void merge1(double ***combined, double ***tmp, int low, int mid, int high);
 void sortEigenVectors(int arraySize, double ***jacobiMatrix, double **combined);
 
 /***/
