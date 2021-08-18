@@ -30,8 +30,8 @@ static PyObject *initializeCProcess(PyObject *self, PyObject *args){
     /* Initialization and argument parsing */
     int i, j, argc, row_count, col_count, arraySize, d;
     char **argv, *temp;
-    double **ret_matrix, **datapoints;
-    PyObject *argv_PyArray, *retPyMatrix, *datapointMatrix, *retObject;
+    double **ret_matrix;
+    PyObject *argv_PyArray, *retPyMatrix;
 
     if (!PyArg_ParseTuple(args, "O!", &PyList_Type,
                           &argv_PyArray)){
@@ -59,17 +59,12 @@ static PyObject *initializeCProcess(PyObject *self, PyObject *args){
 
     BEEP(1)
 
-    ret_matrix = checkArgs(argc, argv, 1, &row_count, &col_count,
-                           &datapoints, &arraySize, &d);
+    ret_matrix = checkArgs(argc, argv, 1, &row_count, &col_count);
 
     BEEP(2)
 
     /*Returning the data as a Python list of lists*/
-    /** TODO: Put in seperate function? */
     retPyMatrix = matrixToPyMatrix(&ret_matrix, row_count, col_count);
-
-    datapointMatrix = matrixToPyMatrix(&datapoints, arraySize, d);
-
 
     /* Freeing allocated memory and finishing call*/
     for(i = 0; i < argc; i++){
@@ -80,11 +75,7 @@ static PyObject *initializeCProcess(PyObject *self, PyObject *args){
 
     Py_DECREF(argv_PyArray);
 
-    retObject = PyList_New(2);
-    PyList_SetItem(retObject, 0, retPyMatrix);
-    PyList_SetItem(retObject, 1, datapointMatrix);
-
-    return retObject;
+    return retPyMatrix;
 }
 
 static PyObject *KMeansPlusPlusIntegration(PyObject *self, PyObject *args){
@@ -92,32 +83,27 @@ static PyObject *KMeansPlusPlusIntegration(PyObject *self, PyObject *args){
      * and a list of initial centroids*/
 
     /* Initialization and argument parsing */
-    int i, j, k, d, arraySize, *init_centroids;
-    double **matrix, **retMatrix, **datapoints;
-    PyObject *init_centroidsPyList, *matrixPyList, *retPyMatrix, *tmpPyList,
-            *datapointPyList;
+    int i, j, k, arraySize, *init_centroids;
+    double **matrix, **retMatrix;
+    PyObject *init_centroidsPyList, *matrixPyList, *retPyMatrix, *tmpPyList;
 
-    if (!PyArg_ParseTuple(args, "O!O!O!", &PyList_Type,
+    if (!PyArg_ParseTuple(args, "O!O!", &PyList_Type,
                           &matrixPyList, &PyList_Type,
-                          &init_centroidsPyList, &PyList_Type,
-                          &datapointPyList)){
+                          &init_centroidsPyList)){
         Py_DECREF(matrixPyList);
         Py_DECREF(init_centroidsPyList);
-        Py_DECREF(datapointPyList);
         Py_RETURN_NONE;
     }
 
     /* Parsing Python objects to C objects */
     arraySize = (int) PyObject_Length(matrixPyList);
     k = (int) PyObject_Length(init_centroidsPyList);
-    d = (int) PyObject_Length(PyList_GetItem(datapointPyList, 0));
     matrix = createMatrix(arraySize, k);
     init_centroids = calloc(k, sizeof(int));
-    datapoints = createMatrix(arraySize, d);
 
     for (i = 0 ; i < arraySize ; i++){
         tmpPyList = PyList_GetItem(matrixPyList, i);
-        for (j = 0 ; j < d; j++){
+        for (j = 0 ; j < k; j++){
             matrix[i][j] = PyFloat_AsDouble(PyList_GetItem(tmpPyList, j));
         }
     }
@@ -126,19 +112,11 @@ static PyObject *KMeansPlusPlusIntegration(PyObject *self, PyObject *args){
         init_centroids[i] = (int) PyLong_AsLong(PyList_GetItem(init_centroidsPyList, i));
     }
 
-    for (i = 0 ; i < arraySize; i++){
-        tmpPyList = PyList_GetItem(datapointPyList, i);
-        for (j = 0; j < d; j++){
-            datapoints[i][j] = PyFloat_AsDouble(PyList_GetItem(tmpPyList, j));
-        }
-    }
-
     /* Running KMeans algorithm in C */
-    retMatrix = KMeansAlgorithm(k, d, arraySize, &matrix, 1, &init_centroids,
-                                &datapoints);
+    retMatrix = KMeansAlgorithm(k, arraySize, &matrix, &init_centroids);
 
     /* Parsing C Objects back to Python objects */
-    retPyMatrix = matrixToPyMatrix(&retMatrix, arraySize, d);
+    retPyMatrix = matrixToPyMatrix(&retMatrix, k, k);
 
     /* Freeing allocated memory and finishing call*/
 

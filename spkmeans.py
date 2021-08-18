@@ -7,16 +7,15 @@ from spkmeansmodule import initializeCProcess, KMeansPlusPlusIntegration
 def main():
     arguments = sys.argv.copy()
 
-    cprocess_results = initializeCProcess(arguments)
-
-    ret_matrix, datapoints = cprocess_results[0], cprocess_results[1]
+    ret_matrix = initializeCProcess(arguments)
 
     if sys.argv[2] == "spk":
         init_centroids = k_means_plus_plus(ret_matrix)
-        ret_matrix = KMeansPlusPlusIntegration(ret_matrix, init_centroids,
-                                               datapoints)
+        print(init_centroids)
+        ret_matrix = KMeansPlusPlusIntegration(ret_matrix,
+                                               init_centroids.copy())
 
-    print_results(ret_matrix)
+    #print_results(ret_matrix)
 
 
 # code copied from HW2

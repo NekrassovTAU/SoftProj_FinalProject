@@ -6,8 +6,7 @@ enum goalEnum {
 };
 
 double **checkArgs(int argc, char **origArgv, int isCAPI, int *returnRowCount,
-                   int *returnColCount, double ***datapoints, int *arraySize,
-                   int *d);
+                   int *returnColCount);
 
 double **
 initProcess(int *k, int d, int arraySize, enum goalEnum goal,
@@ -97,8 +96,8 @@ void makeIntoIdentityMatrix(double ***emptyMatrix, int matrixSize);
 
 void freeMatrix(double ***matrix);
 
-double **KMeansAlgorithm(int k, int d, int arraySize, double ***T, int isCAPI,
-                         int **init_centroids, double ***datapoints);
+double **
+KMeansAlgorithm(int k, int arraySize, double ***T, int **init_centroids);
 
 
 /** Testers */
@@ -119,11 +118,7 @@ double **centroidsFromList(double ***pointList, int **init_centroids, int k);
 
 int updateCentroidsPerDatap(double ***datapoint, double ***centroid,
                             int **datap_cluster_assignment, int d, int k,
-                            int size, double ***sumArrayHead, int **countArray);
-
-double **
-calcDatapointCentroids(double ***datapoints, int **datap_cluster_assignment,
-                       int arraySize, int k, int d);
+                            int arraySize, double ***sumArrayHead, int **countArray);
 
 static void
 copyDatapoint(double ***datapoint, double **datap_array, int arraySize, int d);

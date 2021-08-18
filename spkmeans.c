@@ -28,16 +28,14 @@
     }
 
 #define BEEP(num) \
-    printf("%s %d%s", "SPKMEANS Check #" , num, "\n");
+    printf("%s %f%s", "SPKMEANS Check #" , num, "\n");
 
 /**
  * main, a shell function for the spectral clustering algorithm implementation
  */
 int main(int argc, char *argv[]) {
-    int rowCount, colCount, arraySize, d;
-    double **datapoints;
-    checkArgs(argc, argv, 0, &rowCount, &colCount, &datapoints,
-              &arraySize, &d);
+    int rowCount, colCount;
+    checkArgs(argc, argv, 0, &rowCount, &colCount);
 /*
     int i;
     double **arr, **Atag, **V, **jacobiMatrix, *jacobiArray;
@@ -89,10 +87,9 @@ int main(int argc, char *argv[]) {
  * dimensions
  */
 double **checkArgs(int argc, char **origArgv, int isCAPI, int *returnRowCount,
-                   int *returnColCount, double ***datapoints, int *arraySize,
-                   int *d) {
-    int k, *dArraySizeInfo;
-    double *datap_array, **ret_matrix;
+                   int *returnColCount) {
+    int k, d, arraySize, *dArraySizeInfo;
+    double *datap_array, **ret_matrix, **datapoints;
     enum goalEnum goal;
     char *ptr;
 
@@ -113,25 +110,27 @@ double **checkArgs(int argc, char **origArgv, int isCAPI, int *returnRowCount,
 
     /** process the datapoint file, and return info about their amount (arraySize)
      * and number of properties (d) */
-    processDatapoints(origArgv[3], &datap_array, datapoints, &dArraySizeInfo);
+    processDatapoints(origArgv[3], &datap_array, &datapoints, &dArraySizeInfo);
 
-    *d = dArraySizeInfo[0];
-    *arraySize = dArraySizeInfo[1];
+    d = dArraySizeInfo[0];
+    arraySize = dArraySizeInfo[1];
     free(dArraySizeInfo);
 
-    ASSERT_ARGS(k < (*arraySize))
+    if (goal == spk){
+        ASSERT_ARGS(k < arraySize)
+    }
 
-    BEEP(1)
+    BEEP(1.1)
 
     /** initialize the process to achieve the provided goal */
-    ret_matrix = initProcess(&k, *d, *arraySize, goal, datapoints, isCAPI);
+    ret_matrix = initProcess(&k, d, arraySize, goal, &datapoints, isCAPI);
 
-    BEEP(2)
+    BEEP(1.2)
 
     /** Determining row and col size for return matrix */
-    determineRowAndCol(goal, k, *arraySize, returnRowCount, returnColCount);
+    determineRowAndCol(goal, k, arraySize, returnRowCount, returnColCount);
 
-    BEEP(3)
+    BEEP(1.3)
 
     /** Free allocated memory and terminate*/
 
@@ -157,7 +156,7 @@ void determineRowAndCol(enum goalEnum goal, int k, int arraySize, int *rowCount,
             break;
         }
         case spk:{
-            *rowCount = arraySize;
+            *rowCount = k;
             *colCount = k;
             break;
         }
@@ -347,16 +346,17 @@ goalBasedProcess(int *k, int d, int arraySize, double ***datapoint,
 
     jacobiMatrix = calcJacobi(arraySize, &normLaplacianMatrix);
 
-    BEEP(3)
+    BEEP(2.1)
 
     spkMatrix = calcSpectralClusters(k, arraySize, isCAPI, &jacobiMatrix, datapoint);
 
-    BEEP(4)
+    BEEP(2.2)
 
     freeMatrix(&weightedAdjMatrix);
     freeMatrix(&diagDegMatrix);
-    freeMatrix(&normLaplacianMatrix);
-    freeMatrix(&jacobiMatrix);
+    //freeMatrix(&normLaplacianMatrix);
+    //freeMatrix(&jacobiMatrix);
+
     return spkMatrix;
 }
 
@@ -928,6 +928,7 @@ calcSpectralClusters(int *k, int arraySize, int isCAPI, double ***jacobiMatrix,
 
     /** create U with the first k sorted jacobi's eigenVectors & normalize it*/
     U = getMatrixU(*k, arraySize, jacobiMatrix, combined);
+
     freeMatrix(&combined);
 
     normalizeU(*k, arraySize, &U);
@@ -943,8 +944,7 @@ calcSpectralClusters(int *k, int arraySize, int isCAPI, double ***jacobiMatrix,
         init_centroids[i] = i;
     }
 
-    spkMatrix = KMeansAlgorithm(*k, *k, arraySize, &T, isCAPI, &init_centroids,
-                                datapoints);
+    spkMatrix = KMeansAlgorithm(*k, arraySize, &T, &init_centroids);
 
     //TODO: free memory and finish
     free(init_centroids);
@@ -952,10 +952,10 @@ calcSpectralClusters(int *k, int arraySize, int isCAPI, double ***jacobiMatrix,
     return spkMatrix;
 }
 
-double **KMeansAlgorithm(int k, int d, int arraySize, double ***T, int isCAPI,
-                         int **init_centroids, double ***datapoints) {
+double **
+KMeansAlgorithm(int k, int arraySize, double ***T, int **init_centroids) {
     int max_iter, update, *datap_cluster_assignment, *countArray;
-    double **t_centroids, **datapoints_Centroids, **sumArrayHead;
+    double **t_centroids, **sumArrayHead;
 
     max_iter = MAX_ITER;
     update = 1;
@@ -964,29 +964,25 @@ double **KMeansAlgorithm(int k, int d, int arraySize, double ***T, int isCAPI,
 
     datap_cluster_assignment = calloc( arraySize , sizeof (int));
 
-    sumArrayHead = createMatrix(k, d);
+    sumArrayHead = createMatrix(k, k);
 
     countArray = calloc(k, sizeof(int));
     ASSERT_ERROR(countArray != NULL)
 
     while(max_iter > 0 && update){
         update = updateCentroidsPerDatap(T, &t_centroids,
-                                         &datap_cluster_assignment, d, k,
+                                         &datap_cluster_assignment, k, k,
                                          arraySize, &sumArrayHead, &countArray);
+
         max_iter--;
     }
-
-    //TODO: NEED TO PROVIDE ORIGINAL DATAPOINTS TOO
-    datapoints_Centroids = calcDatapointCentroids(datapoints,
-                                                  &datap_cluster_assignment, arraySize,
-                                                  k, d);
 
 
     free(datap_cluster_assignment);
     freeMatrix(&sumArrayHead);
     free(countArray);
 
-    return datapoints_Centroids;
+    return t_centroids;
 
 }
 
@@ -1016,14 +1012,14 @@ double **centroidsFromList(double ***pointList, int **init_centroids, int k) {
 
 int updateCentroidsPerDatap(double ***datapoint, double ***centroid,
                             int **datap_cluster_assignment, int d, int k,
-                            int size, double ***sumArrayHead,
+                            int arraySize, double ***sumArrayHead,
                             int **countArray) {
     int i, j, v, min_cluster, update, currCluster;
     double dist, min_dist, new_value;
 
     update = 0;
 
-    for (i = 0 ; i < size ; i++){
+    for (i = 0 ; i < arraySize ; i++){
         min_dist = FLT_MAX, min_cluster = -1;
 
         for (j = 0; j < k; j++ ){
@@ -1045,7 +1041,7 @@ int updateCentroidsPerDatap(double ***datapoint, double ***centroid,
 
     /* loop to initialize sum/counter*/
 
-    for(i = 0; i < size; i++){ /*count and sum up all the sizes*/
+    for(i = 0; i < arraySize; i++){ /*count and sum up all the sizes*/
         currCluster = (*datap_cluster_assignment)[i];
         (*countArray)[currCluster]++;
         for(v = 0; v < d; v++){
@@ -1064,40 +1060,6 @@ int updateCentroidsPerDatap(double ***datapoint, double ***centroid,
     }
 
     return update;
-}
-
-double **
-calcDatapointCentroids(double ***datapoints, int **datap_cluster_assignment,
-                       int arraySize, int k, int d) {
-
-    int i, j, currCluster, *countArray;
-    double **datap_centroids, **sumArrayHead;
-
-    datap_centroids = createMatrix(k, d);
-    sumArrayHead = createMatrix(arraySize, d);
-
-    countArray = calloc(arraySize, sizeof(int));
-    ASSERT_ERROR(countArray != NULL)
-
-    /* loop to setup sum/counter*/
-    for(i = 0; i < arraySize; i++){ /*count and sum up all the sizes*/
-        currCluster = (*datap_cluster_assignment)[i];
-        countArray[currCluster]++;
-        for(j = 0; j < d; j++){
-            sumArrayHead[currCluster][j] += (*datapoints)[i][j];
-        }
-    }
-
-    for (i = 0; i < k ; i++){
-        for (j = 0 ; j < d ; j++){
-            datap_centroids[i][j] = sumArrayHead[i][j] / countArray[i];
-        }
-    }
-
-    freeMatrix(&sumArrayHead);
-    free(countArray);
-
-    return datap_centroids;
 }
 
 
