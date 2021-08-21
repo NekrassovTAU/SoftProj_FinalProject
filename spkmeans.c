@@ -120,17 +120,11 @@ double **checkArgs(int argc, char **origArgv, int isCAPI, int *returnRowCount,
         ASSERT_ARGS(k < arraySize)
     }
 
-    BEEP(1.1)
-
     /** initialize the process to achieve the provided goal */
     ret_matrix = initProcess(&k, d, arraySize, goal, &datapoints, isCAPI);
 
-    BEEP(1.2)
-
     /** Determining row and col size for return matrix */
     determineRowAndCol(goal, k, arraySize, returnRowCount, returnColCount);
-
-    BEEP(1.3)
 
     /** Free allocated memory and terminate*/
 
@@ -156,7 +150,7 @@ void determineRowAndCol(enum goalEnum goal, int k, int arraySize, int *rowCount,
             break;
         }
         case spk:{
-            *rowCount = k;
+            *rowCount = arraySize;
             *colCount = k;
             break;
         }
@@ -346,11 +340,7 @@ goalBasedProcess(int *k, int d, int arraySize, double ***datapoint,
 
     jacobiMatrix = calcJacobi(arraySize, &normLaplacianMatrix);
 
-    BEEP(2.1)
-
     spkMatrix = calcSpectralClusters(k, arraySize, isCAPI, &jacobiMatrix, datapoint);
-
-    BEEP(2.2)
 
     freeMatrix(&weightedAdjMatrix);
     freeMatrix(&diagDegMatrix);
@@ -382,7 +372,7 @@ void printResult(double ***retArray, enum goalEnum goal, int arraySize, int k, i
         printDiagonal(retArray, arraySize);
     }
     if(goal == spk){
-        printRegular(retArray, k, d);
+        printRegular(retArray, k, k);
     }
 }
 
@@ -923,15 +913,15 @@ calcSpectralClusters(int *k, int arraySize, int isCAPI, double ***jacobiMatrix,
 
     /** determine k (if k==0) AND change k variable accordingly, important for CAPI */
     if(*k == 0){
-        *k = getK(arraySize, jacobiMatrix);
+        *k = getK(arraySize, &combined);
     }
 
     /** create U with the first k sorted jacobi's eigenVectors & normalize it*/
     U = getMatrixU(*k, arraySize, jacobiMatrix, combined);
-
     freeMatrix(&combined);
 
     normalizeU(*k, arraySize, &U);
+
     T = U;
 
     //TODO: K-Means algorithm - if CAPI - need to return to python for K-Means++
@@ -976,7 +966,6 @@ KMeansAlgorithm(int k, int arraySize, double ***T, int **init_centroids) {
 
         max_iter--;
     }
-
 
     free(datap_cluster_assignment);
     freeMatrix(&sumArrayHead);
@@ -1051,7 +1040,9 @@ int updateCentroidsPerDatap(double ***datapoint, double ***centroid,
 
     /*update the new clusters and initialize to 0*/
     for(j = 0; j < k; j++) { /* each loop for different cluster*/
+  //      printf(" %d ", (*countArray)[j]);
         for (v = 0; v < d; v++) { /* each loop for opponent of the current cluster*/
+
             new_value = (*sumArrayHead)[j][v] / (*countArray)[j];
             (*centroid)[j][v] = new_value;
             (*sumArrayHead)[j][v] = 0;
@@ -1188,14 +1179,14 @@ void sortEigenVectors(int arraySize, double ***jacobiMatrix, double **combined) 
 /**
  * Returns K based on the biggest difference between two adjacent eigenValues
  * @param arraySize - amount of datapoints
- * @param jacobiMatrix - jacobi matrix which includes eigenValues and EigenVectors
+ * @param combined - jacobi matrix which includes eigenValues and EigenVectors
  */
-int getK(int arraySize, double ***jacobiMatrix) {
+int getK(int arraySize, double ***combined) {
 
     int j, k = 0;
     double cur, max = (-1);
     for(j = 0; j < arraySize / 2; j++) {
-        cur = fabs((*jacobiMatrix)[0][j] - (*jacobiMatrix)[0][j+1]);
+        cur = fabs((*combined)[0][j] - (*combined)[0][j + 1]);
         if(cur > max){
             max = cur;
             k = j + 1;
@@ -1247,11 +1238,14 @@ void normalizeU(int k, int arraySize, double ***U){
         }
 
         valueOfRow = sqrt(valueOfRow);
-        if(valueOfRow == 0){ // in case we divide in 0
+        /*if(valueOfRow == 0){ // in case we divide in 0
             continue;
         }
-        for(j = 0; j < arraySize; j++) {
-            (*U)[i][j] /= valueOfRow;   // T(i,j) = U(i,j) / valueOfRow
+         */
+        if(valueOfRow != 0){
+            for (j = 0; j < k; j++) {
+                (*U)[i][j] /= valueOfRow;   // T(i,j) = U(i,j) / valueOfRow
+            }
         }
     }
 }

@@ -15,7 +15,7 @@ def main():
         ret_matrix = KMeansPlusPlusIntegration(ret_matrix,
                                                init_centroids.copy())
 
-    #print_results(ret_matrix)
+    print_results(ret_matrix)
 
 
 # code copied from HW2
@@ -65,7 +65,15 @@ def k_means_plus_plus(datapoints):
 
 
 def print_results(ret_matrix):
-    print(ret_matrix)
+    for i in range(len(ret_matrix)):
+        for j in range(len(ret_matrix[i])):
+            print(format(ret_matrix[i][j],'.4f'),end="")
+            if j != (len(ret_matrix[i]) - 1):
+                print(',',end="")
+            else:
+                print()
+  #  print(ret_matrix)
+
 
 
 if __name__ == "__main__":

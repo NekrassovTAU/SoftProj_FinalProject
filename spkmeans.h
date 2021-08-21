@@ -83,7 +83,7 @@ void merge(double **jacobiMatrix, double **eigenValuesSorted, int **newIndex, in
 
 void sortEigenVectors(int arraySize, double ***jacobiMatrix, int *newIndex);
 */
-int getK(int arraySize, double ***jacobiMatrix);
+int getK(int arraySize, double ***combined);
 
 double **getMatrixU(int k, int arraySize, double ***jacobiMatrix, double **combined);
 
