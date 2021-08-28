@@ -79,9 +79,10 @@ def print_init_centroids(init_centroids):
 
 
 def print_results(ret_matrix, goal):
-
     row = len(ret_matrix)
     col = len(ret_matrix[0])
+
+    ret_matrix = fix_zeros(ret_matrix)
 
     if goal == "ddg":
         ret_matrix = ddg_printable(ret_matrix)
@@ -96,6 +97,18 @@ def print_results(ret_matrix, goal):
                 print(',', end="")
             else:
                 print("\n", end="")
+
+
+def fix_zeros(ret_matrix):
+    row = len(ret_matrix)
+    col = len(ret_matrix[0])
+
+    for i in range(row):
+        for j in range(col):
+            if -0.00005 < ret_matrix[i][j] < 0:
+                ret_matrix[i][j] = 0
+
+    return ret_matrix
 
 
 def ddg_printable(ret_matrix):

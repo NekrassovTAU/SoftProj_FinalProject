@@ -81,7 +81,7 @@ double **checkArgs(int argc, char **origArgv, int isCAPI, int *returnRowCount,
     ret_matrix = initProcess(&k, d, arraySize, goal, &datapoints, isCAPI);
 
     /** Determining row and col size for return matrix */
-    determineRowAndCol(goal, k, arraySize, returnRowCount, returnColCount);
+    determineRowAndCol(goal, k, arraySize, returnRowCount, returnColCount, 1);
 
     /** Free allocated memory and terminate*/
     freeMatrix(&datapoints);
@@ -101,7 +101,7 @@ double **checkArgs(int argc, char **origArgv, int isCAPI, int *returnRowCount,
  *                   method).
  */
 void determineRowAndCol(enum goalEnum goal, int k, int arraySize, int *rowCount,
-                        int *colCount) {
+                        int *colCount, int isCAPI) {
     switch (goal) {
         case jacobi:{
             *rowCount = arraySize + 1;
@@ -109,7 +109,12 @@ void determineRowAndCol(enum goalEnum goal, int k, int arraySize, int *rowCount,
             break;
         }
         case spk:{
-            *rowCount = arraySize;
+            if (isCAPI){
+                *rowCount = arraySize;
+            }
+            else{
+                *rowCount = k;
+            }
             *colCount = k;
             break;
         }
@@ -321,8 +326,10 @@ goalBasedProcess(int *k, int d, int arraySize, double ***datapoint,
 void printResult(double ***ret_matrix, enum goalEnum goal, int arraySize, int k) {
 
     int rows, cols;
-    determineRowAndCol(goal, k, arraySize, &rows, &cols);
+
+    determineRowAndCol(goal, k, arraySize, &rows, &cols, 0);
     fixZeros(ret_matrix, rows, cols);
+
     if((goal == wam) || (goal == lnorm)){
         printRegular(ret_matrix, arraySize, arraySize);
     }

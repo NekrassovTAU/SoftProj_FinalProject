@@ -104,7 +104,7 @@ double **randomMatrix(int n, int m);
 void print1Darray(int *array, int arraySize);
 
 void determineRowAndCol(enum goalEnum goal, int k, int arraySize, int *rowCount,
-        int *colCount);
+                        int *colCount, int isCAPI);
 
 double **centroidsFromList(double ***pointList, int **init_centroids, int k);
 
