@@ -757,9 +757,8 @@ void findMaxOffDiag(int arraySize, double ***A, int *row, int *col) {
 }
 
 /**
- *Calculate the matrix Atag using the current A and P (based on c&s) :
- * A' = P^T * A * P
- * & update the offAtag accordingly to the changes made
+ * Calculate the matrix Atag using the current A and P (based on c&s) :
+ * (A' = P^T * A * P)  & update the offAtag accordingly to the changes made
  * @param arraySize - amount of datapoints
  * @param A - 2-D array to be calculated based on the given one
  * @param c - the value of P[row][row]
@@ -798,6 +797,8 @@ void updateAtag(int arraySize, double ***A, double c, double s,
     (*A)[col][row] = 0;
 
     *offAtag -= 2 * (ij * ij);
+    /* The sum of all the other differences
+     * (between the old value in the matrix and the new one) is 0 */
 }
 
 /**
@@ -828,10 +829,16 @@ void updateV(int arraySize, double ***V, double c, double s, int row, int col){
     }
 }
 
-
-double **
-calcSpectralClusters(int *k, int arraySize, int isCAPI,
-                     double ***jacobiMatrix) {
+/** Calculate the spk matrix using KMeans & returns it if !isCAPI,
+ * else - returns the matrix T for KMeans++
+* @param k - pointer to the number of clusters
+* @param arraySize - amount of datapoints
+* @param isCAPI - 1 if running in Python, 0 if running in C
+* @param jacobiMatrix - pointer to the JacobiMatrix calculated before
+* @return if (isCAPI == 1) - The spk matrix after running KMeans in C,
+*         else - returns the matrix T for running KMeans++ in python */
+double **calcSpectralClusters(int *k, int arraySize, int isCAPI,
+                              double ***jacobiMatrix) {
 
     double **U, **T, **spkMatrix, **combined;
     int i, *init_centroids;
@@ -876,8 +883,9 @@ calcSpectralClusters(int *k, int arraySize, int isCAPI,
 }
 
 
-double **
-KMeansAlgorithm(int k, int arraySize, double ***T, int **init_centroids) {
+double **KMeansAlgorithm(int k, int arraySize,
+                         double ***T, int **init_centroids) {
+
     int max_iter, update, *datap_cluster_assignment, *countArray;
     double **t_centroids, **sumArrayHead;
 
