@@ -320,6 +320,9 @@ goalBasedProcess(int *k, int d, int arraySize, double ***datapoint,
  */
 void printResult(double ***ret_matrix, enum goalEnum goal, int arraySize, int k) {
 
+    int rows, cols;
+    determineRowAndCol(goal, k, arraySize, &rows, &cols);
+    fixZeros(ret_matrix, rows, cols);
     if((goal == wam) || (goal == lnorm)){
         printRegular(ret_matrix, arraySize, arraySize);
     }
@@ -748,8 +751,8 @@ void findMaxOffDiag(int arraySize, double ***A, int *row, int *col) {
 void updateAtag(int arraySize, double ***A, double c, double s, int row, int col, double *offAtag) {
 
     int r;
-    double ri, rj, ij, ii, jj;
-
+    double ri, rj, ij, ii, jj, sum;
+    sum = 0;
     /** update each Atag[r,i]/Atag[r,j], for : r != i,j
      * can cut computation in half because the matrix is symmetric */
     for (r = 0; r < arraySize; r++) {
@@ -761,8 +764,8 @@ void updateAtag(int arraySize, double ***A, double c, double s, int row, int col
             (*A)[row][r] = (*A)[r][row];
             (*A)[r][col] = (c * rj) + (s * ri);
             (*A)[col][r] = (*A)[r][col];
-
-            *offAtag += 2 * ((*A)[r][row] * (*A)[r][row] + (*A)[r][col] * (*A)[r][col]) - 2 * (ri * ri + rj * rj);
+            sum +=  2 * ((*A)[r][row] * (*A)[r][row] + (*A)[r][col] * (*A)[r][col]) - 2 * (ri * ri + rj * rj);
+       //     *offAtag += 2 * ((*A)[r][row] * (*A)[r][row] + (*A)[r][col] * (*A)[r][col]) - 2 * (ri * ri + rj * rj);
         }
     }
     /**  Atag[i,i] / Atag[j,j]/ Atag[i,j] / Atag[j,i] */
@@ -1132,6 +1135,21 @@ void normalizeU(int k, int arraySize, double ***U){
 }
 
 
+/** Replace -0.0000 with 0 */
+void fixZeros(double ***matrix, int rows, int cols){
+
+    printf("rows: %d, cols = %d", rows, cols);
+    int i, j;
+
+    for(i = 0; i < rows; i++){
+        for(j = 0; j < cols; j++){
+            if((*matrix)[i][j] < 0 && (*matrix)[i][j] > -0.00005){
+                (*matrix)[i][j] = 0.0f;
+            }
+        }
+    }
+}
+
 /********************** Testers **********************/
 
 
@@ -1186,7 +1204,6 @@ double **TesterToWeight(){
 }
 
 
-
 /** creates random n*m matrix */
 double **randomMatrix(int n, int m) {
 
@@ -1200,6 +1217,7 @@ double **randomMatrix(int n, int m) {
     }
     return matrix;
 }
+
 
 void print1Darray(int *array, int arraySize){
 

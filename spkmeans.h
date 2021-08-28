@@ -115,5 +115,6 @@ int updateCentroidsPerDatap(double ***datapoint, double ***centroid,
 static void
 copyDatapoint(double ***datapoint, double **datap_array, int arraySize, int d);
 
+void fixZeros(double ***matrix, int rows, int cols);
 
 #endif //SOFTPROJ_FINAL_SPKMEANS_H
