@@ -119,6 +119,14 @@ static PyObject *KMeansPlusPlusIntegration(PyObject *self, PyObject *args){
     retPyMatrix = matrixToPyMatrix(&retMatrix, k, k);
 
     /* Freeing allocated memory and finishing call*/
+    freeMatrix(&retMatrix);
+    freeMatrix(&matrix);
+    free(init_centroids);
+    Py_DECREF(init_centroidsPyList);
+    Py_DECREF(matrixPyList);
+    Py_DECREF(tmpPyList);
+
+    BEEP(3)
 
     return retPyMatrix;
 }

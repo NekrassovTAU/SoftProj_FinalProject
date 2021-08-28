@@ -5,22 +5,26 @@ from spkmeansmodule import initializeCProcess, KMeansPlusPlusIntegration
 
 
 def main():
+    invert_jacobi([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]])
+
     arguments = sys.argv.copy()
 
     ret_matrix = initializeCProcess(arguments)
 
     if sys.argv[2] == "spk":
         init_centroids = k_means_plus_plus(ret_matrix)
-        print(init_centroids)
+        print_init_centroids(init_centroids)
         ret_matrix = KMeansPlusPlusIntegration(ret_matrix,
                                                init_centroids.copy())
 
-    print_results(ret_matrix)
+    print_results(ret_matrix, sys.argv[2])
 
 
 # code copied from HW2
 def k_means_plus_plus(datapoints):
-    array_size, d, k = len(datapoints), len(datapoints[0]), len(datapoints[0])
+    array_size = len(datapoints)
+    k = len(datapoints[0])
+    d = len(datapoints[0])
     np.random.seed(0)
 
     # construct array of clusters - the first cluster is randomly selected
@@ -64,16 +68,51 @@ def k_means_plus_plus(datapoints):
     return initial_clusters
 
 
-def print_results(ret_matrix):
-    for i in range(len(ret_matrix)):
-        for j in range(len(ret_matrix[i])):
-            print(format(ret_matrix[i][j],'.4f'),end="")
-            if j != (len(ret_matrix[i]) - 1):
-                print(',',end="")
-            else:
-                print()
-  #  print(ret_matrix)
+def print_init_centroids(init_centroids):
+    k = len(init_centroids)
+    for i in range(k):
+        print(init_centroids[i], end="")
+        if i != k - 1:
+            print(",", end="")
+        else:
+            print("\n", end="")
 
+
+def print_results(ret_matrix, goal):
+
+    row = len(ret_matrix)
+    col = len(ret_matrix[0])
+
+    if goal == "ddg":
+        ret_matrix = ddg_printable(ret_matrix)
+
+    if goal == "jacobi":
+        ret_matrix = invert_jacobi(ret_matrix)
+
+    for i in range(row):
+        for j in range(col):
+            print("{:.4f}".format(ret_matrix[i][j]), end="")
+            if j != col - 1:
+                print(',', end="")
+            else:
+                print("\n", end="")
+
+
+def ddg_printable(ret_matrix):
+    n = len(ret_matrix)
+
+    matrix = [[0 for _ in range(n)] for _ in range(n)]
+    for i in range(n):
+        matrix[i][i] = ret_matrix[0][i]
+
+    return matrix
+
+
+def invert_jacobi(ret_matrix):
+    transposed = [ret_matrix[0]]
+    transposed.extend(np.transpose(ret_matrix[1:]))
+
+    return transposed
 
 
 if __name__ == "__main__":

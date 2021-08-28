@@ -10,9 +10,9 @@
 #define FLT_MAX 3.402823466e+38F
 #define FLT_MIN 1.1754943508e-38F
 
-#define BUFFER_SIZE 10000
-#define INITIAL_ARRAY_SIZE 1000
-#define EPSILON 0.001
+#define BUFFER_SIZE 1000
+#define INITIAL_ARRAY_SIZE 100
+#define EPSILON 1.0e-15F
 #define MAX_ITER 300
 
 #define ASSERT_ARGS(expr) \
@@ -34,45 +34,8 @@
  * main, a shell function for the spectral clustering algorithm implementation
  */
 int main(int argc, char *argv[]) {
-    int rowCount, colCount;
+    int rowCount, colCount; //dummy variables, relevant only for C-API
     checkArgs(argc, argv, 0, &rowCount, &colCount);
-/*
-    int i;
-    double **arr, **Atag, **V, **jacobiMatrix, *jacobiArray;
-
-    arr = (double**) calloc(3,sizeof (double*));
-
-    for(i = 0; i < 3; i++) {
-        arr[i] =  calloc(3, sizeof(double));
-    }
-
-      arr[0][0] = 3;
-      arr[0][1] = 2;
-      arr[0][2] = 4;
-      arr[1][0] = 2;
-      arr[1][1] = 0;
-      arr[1][2] = 2;
-      arr[2][0] = 4;
-      arr[2][1] = 2;
-      arr[2][2] = 3;
-
-      printTest(arr, 3, 3);
-      jacobiMatrix = calcJacobi(3, &arr);
-      printf("\n\n");
-      printTest(jacobiMatrix, 4, 3);
-
-      sortJacobi(3, &jacobiMatrix);
-      printf("\n\n");
-      printTest(jacobiMatrix, 4, 3);
-*/
-/*
-    double **weightdAdjMatrix, **diagDegMatrix, **normLaplacianMatrix, **jacobiMatrix;
-
-    // check the calc functions directly
-    weightdAdjMatrix = TesterToWeight();
-
-    TesterToSortJacobi();
-*/
     return 0;
 }
 
@@ -88,8 +51,8 @@ int main(int argc, char *argv[]) {
  */
 double **checkArgs(int argc, char **origArgv, int isCAPI, int *returnRowCount,
                    int *returnColCount) {
-    int k, d, arraySize, *dArraySizeInfo;
-    double *datap_array, **ret_matrix, **datapoints;
+    int k, d, arraySize;
+    double **ret_matrix, **datapoints;
     enum goalEnum goal;
     char *ptr;
 
@@ -104,17 +67,11 @@ double **checkArgs(int argc, char **origArgv, int isCAPI, int *returnRowCount,
     goal = checkGoal(origArgv[2]);
     ASSERT_ARGS(goal != INVALID)
 
-    dArraySizeInfo = calloc(2, sizeof(int));
-    ASSERT_ERROR(dArraySizeInfo != NULL)
-
 
     /** process the datapoint file, and return info about their amount (arraySize)
      * and number of properties (d) */
-    processDatapoints(origArgv[3], &datap_array, &datapoints, &dArraySizeInfo);
-
-    d = dArraySizeInfo[0];
-    arraySize = dArraySizeInfo[1];
-    free(dArraySizeInfo);
+    processDatapoints(origArgv[3], &datapoints, &d,
+                      &arraySize);
 
     if (goal == spk){
         ASSERT_ARGS(k < arraySize)
@@ -127,6 +84,8 @@ double **checkArgs(int argc, char **origArgv, int isCAPI, int *returnRowCount,
     determineRowAndCol(goal, k, arraySize, returnRowCount, returnColCount);
 
     /** Free allocated memory and terminate*/
+    freeMatrix(&datapoints);
+
 
     return ret_matrix;
 }
@@ -168,14 +127,16 @@ void determineRowAndCol(enum goalEnum goal, int k, int arraySize, int *rowCount,
  * @param filename - contains path to datapoints file
  * @param datap_array - pointer to 1D-support array containing datapoint values
  * @param datapoint - pointer to 2D array built upon datap_array
- * @param dArraySizeInfo - array used to return d and arraySize info back to
+ * @param d - array used to return d and arraySize info back to
  *                         the checkArgs function
  */
-void processDatapoints(char *filename, double **datap_array, double ***datapoint,
-                       int **dArraySizeInfo) {
+void
+processDatapoints(char *filename, double ***datapoint, int *d, int *arraySize) {
+
+    double *datap_array;
     char *token, *ptr, currRow[BUFFER_SIZE];
     FILE *fptr;
-    int i, d, arraySize, tail = 0;
+    int i, tail = 0;
 
     /*opens file and reads first line to determine d*/
     fptr = fopen(filename, "r");
@@ -184,31 +145,31 @@ void processDatapoints(char *filename, double **datap_array, double ***datapoint
     fgets(currRow, BUFFER_SIZE, fptr);
     ASSERT_ERROR(currRow != NULL)
 
-    for (i = 0, d = 1; currRow[i]; i++) {
-        d += (currRow[i] == ',');
+    for (i = 0, *d = 1; currRow[i]; i++) {
+        *d += (currRow[i] == ',');
     }
 
-    arraySize = INITIAL_ARRAY_SIZE;
+    *arraySize = INITIAL_ARRAY_SIZE;
 
-    *datap_array = calloc(d * arraySize, sizeof(double));
-    ASSERT_ERROR(*datap_array != NULL)
+    datap_array = calloc((*d) * (*arraySize), sizeof(double));
+    ASSERT_ERROR(datap_array != NULL)
 
     /** Populates datap_array with info from the file */
     do {/* as long as there are still lines to be read */
         /*loop to read line */
         token = strtok(currRow, ","); /* read the current line */
         while (token != NULL) {
-            (*datap_array)[tail] = strtod(token, &ptr);
+            datap_array[tail] = strtod(token, &ptr);
             token = strtok(NULL, ",");
             tail++;
 
             /*in-case we reached the edge of the current datap_array,
              * increase the arraySize by twice */
-            if (tail == d * arraySize) {
-                arraySize *= 2;
-                *datap_array = realloc(*datap_array,
-                                       d * arraySize * sizeof(double));
-                ASSERT_ERROR(*datap_array != NULL)
+            if (tail == (*d) * (*arraySize)) {
+                *arraySize *= 2;
+                datap_array = realloc(datap_array,
+                                       (*d) * (*arraySize) * sizeof(double));
+                ASSERT_ERROR(datap_array != NULL)
             }
         }
     } while (fgets(currRow, BUFFER_SIZE, fptr));
@@ -216,20 +177,17 @@ void processDatapoints(char *filename, double **datap_array, double ***datapoint
     fclose(fptr);
 
     /* cut the datap_array to its intended arraySize */
-    if (tail < d * arraySize - 1) {
-        *datap_array = realloc(*datap_array, tail * sizeof(double));
-        ASSERT_ERROR(*datap_array != NULL)
-        arraySize = tail / d;
+    if (tail < (*d) * (*arraySize) - 1) {
+        datap_array = realloc(datap_array, tail * sizeof(double));
+        ASSERT_ERROR(datap_array != NULL)
+        *arraySize = tail / (*d);
     }
 
     free(token);
 
-    copyDatapoint(datapoint, datap_array, arraySize, d);
+    copyDatapoint(datapoint, &datap_array, *arraySize, *d);
 
-    free(*datap_array);
-
-    (*dArraySizeInfo)[0] = d;
-    (*dArraySizeInfo)[1] = arraySize;
+    free(datap_array);
 }
 
 /**
@@ -280,8 +238,8 @@ initProcess(int *k, int d, int arraySize, enum goalEnum goal,
     /** Freeing memory and returning/printing the result */
 
     if (!isCAPI) {
-        printResult(&ret_matrix, goal, arraySize, *k, d);
-        free(ret_matrix);
+        printResult(&ret_matrix, goal, arraySize, *k);
+        freeMatrix(&ret_matrix);
         return NULL;
     } else {
         /*Will be freed by C-API*/
@@ -340,12 +298,12 @@ goalBasedProcess(int *k, int d, int arraySize, double ***datapoint,
 
     jacobiMatrix = calcJacobi(arraySize, &normLaplacianMatrix);
 
-    spkMatrix = calcSpectralClusters(k, arraySize, isCAPI, &jacobiMatrix, datapoint);
+    spkMatrix = calcSpectralClusters(k, arraySize, isCAPI, &jacobiMatrix);
 
     freeMatrix(&weightedAdjMatrix);
     freeMatrix(&diagDegMatrix);
-    //freeMatrix(&normLaplacianMatrix);
-    //freeMatrix(&jacobiMatrix);
+    freeMatrix(&normLaplacianMatrix);
+    freeMatrix(&jacobiMatrix);
 
     return spkMatrix;
 }
@@ -357,38 +315,38 @@ goalBasedProcess(int *k, int d, int arraySize, double ***datapoint,
  *          next are nXn eigenvecor matrix
  * spk - first line is k-means++ init_centroid indices
  *       next are the k centroids after k-means algorithm
- * @param retArray - pointer to matrix to be printed to user
+ * @param ret_matrix - pointer to matrix to be printed to user
  * @param goal - distinguishes between spk-printing and matrix-printing
  */
-void printResult(double ***retArray, enum goalEnum goal, int arraySize, int k, int d) {
+void printResult(double ***ret_matrix, enum goalEnum goal, int arraySize, int k) {
 
     if((goal == wam) || (goal == lnorm)){
-        printRegular(retArray, arraySize, arraySize);
+        printRegular(ret_matrix, arraySize, arraySize);
     }
     if(goal == jacobi){
-        printJacobi(retArray, arraySize);
+        printJacobi(ret_matrix, arraySize);
     }
     if(goal == ddg) {
-        printDiagonal(retArray, arraySize);
+        printDiagonal(ret_matrix, arraySize);
     }
     if(goal == spk){
-        printRegular(retArray, k, k);
+        printRegular(ret_matrix, k, k);
     }
 }
 
 /**
  * Prints matrix of size rows * cols
- * @param retArray - pointer to matrix to be printed to user
+ * @param ret_matrix - pointer to matrix to be printed to user
  * @param rows - number of rows in the matrix
  * @param cols - number of columns in the matrix
  */
-void printRegular(double ***retArray, int rows, int cols){
+void printRegular(double ***ret_matrix, int rows, int cols){
 
     int i, j;
 
     for(i = 0; i < rows; i++){
         for(j = 0; j < cols; j++){
-            printf("%.4f", (*retArray)[i][j]);
+            printf("%.4f", (*ret_matrix)[i][j]);
             if (j != cols - 1){   /* not last in the line */
                 printf("%s", ",");
             }
@@ -400,16 +358,16 @@ void printRegular(double ***retArray, int rows, int cols){
 }
 /**
  * Prints the Jacobi matrix with eigenValues & eigenVecrtors as lines
- * @param retArray - pointer to matrix to be printed to user
+ * @param ret_matrix - pointer to matrix to be printed to user
  * @param arraySize - number of rows in the matrix
  */
-void printJacobi(double ***retArray, int arraySize) {
+void printJacobi(double ***ret_matrix, int arraySize) {
 
     int i, j;
 
     /** print the eigenValues - first line */
     for (j = 0; j < arraySize; j++) {
-        printf("%.4f", (**retArray)[j]);
+        printf("%.4f", (**ret_matrix)[j]);
         if (j != arraySize - 1) {   /* not last component of the cluster*/
             printf("%s", ",");
         } else {
@@ -420,7 +378,7 @@ void printJacobi(double ***retArray, int arraySize) {
     /** print the eigenVectors - each verctor as a row */
     for (j = 0; j < arraySize; j++) {
         for (i = 1; i < arraySize + 1; i++) {
-            printf("%.4f", (*retArray)[i][j]);
+            printf("%.4f", (*ret_matrix)[i][j]);
             if (i != arraySize) {
                 printf("%s", ",");
             } else {
@@ -432,17 +390,17 @@ void printJacobi(double ***retArray, int arraySize) {
 
 /**
  * Prints the diagonal matrix, filled with 0's
- * @param retArray - pointer to matrix to be printed to user
+ * @param ret_matrix - pointer to matrix to be printed to user
  * @param arraySize - size of the given matrix
  */
-void printDiagonal(double ***retArray, int arraySize) {
+void printDiagonal(double ***ret_matrix, int arraySize) {
 
     int i, j;
 
     for(i = 0; i < arraySize; i++){
         for(j = 0; j < arraySize; j++){
             if(i == j){
-                printf("%.4f", (**retArray)[i]);
+                printf("%.4f", (**ret_matrix)[i]);
             }
             else{
                 printf("0.0000");
@@ -483,37 +441,25 @@ static enum goalEnum checkGoal(char *string) {
 }
 
 /**
- * Takes a n*m-sized array, and coverts it into "matrix" form
- * if allocation fails, returns NULL
- * @param array - pointer to a n*m-sized array
- * @param n - # of rows
- * @param m - # of columns
- * @return a 2D array referencing this array
- */
-static double **arrayToTwoDimArray(double **array, int n, int m) {
-    double **twoDimArray;
-    int i;
-
-    twoDimArray = calloc(n, sizeof(double *));
-    ASSERT_ERROR(twoDimArray != NULL)
-
-    for (i = 0; i < n; i++) {
-        twoDimArray[i] = (*array) + i * m;
-    }
-
-    return twoDimArray;
-}
-
-/**
  * Returns a 2D matrix of size n X m
  * @param n - # of rows
  * @param m - # of cols
  */
 double ** createMatrix(int n, int m) {
-    double *array;
+    double *array, **twoDimArray;
+    int i;
+
     array = calloc(n*m, sizeof (double ));
     ASSERT_ERROR(array != NULL)
-    return arrayToTwoDimArray(&array, n, m);
+
+    twoDimArray = calloc(n, sizeof(double *));
+    ASSERT_ERROR(twoDimArray != NULL)
+
+    for (i = 0; i < n; i++) {
+        twoDimArray[i] = array + i * m;
+    }
+
+    return twoDimArray;
 }
 
 /**
@@ -535,7 +481,7 @@ void makeIntoIdentityMatrix(double ***emptyMatrix, int matrixSize) {
  * @param matrix - pointer to matrix we want to free
  */
 void freeMatrix(double ***matrix) {
-    free(*matrix[0]);
+    free((*matrix)[0]);
     free(*matrix);
 }
 
@@ -684,14 +630,13 @@ double ** calcJacobi(int arraySize, double ***inputMatrix) {
 
      } while (!converge && (iterations < 100)); // as long as (delta > epsilon) or number of iterations is under 100
 
-    /** Atag has the eigenValues
-      *  V has the eifenVectors */
+    /** A has the eigenvalues
+      *  V has the eigenvectors */
 
     jacobiMatrix = copyJacoby(arraySize, &A, &V);
 
-    freeMatrix(&A);
-    /**  seems fine now TODO: FIX NEXT LINE. PROBLEM IN FREE V - when i run threw terminal it doesn't get to the return */
     freeMatrix(&V);
+    //A is either normLaplacian or datapoints, which are freed later on
 
     return jacobiMatrix;
 }
@@ -724,23 +669,6 @@ double **copyJacoby(int arraySize, double ***Atag, double ***V) {
     return jacobiMatrix;
 }
 
-
-/**
- * Check weather the the index of the maximum odd-diag value in A.
- * @param arraySize - amount of datapoints
- * @param A - 2-D symmetric array
- * @param Atag - pointer to the row index of the max value in A (off diag), to be calculated
- * @return 1 if converges, else 0
- */
- /** TODO: delete if not necessary */
-int convergenceCheck(int arraySize, double ***A, double ***Atag) {
-    double offA, offAtag, epsilon = EPSILON;
-    offA = calcOff(arraySize, A);
-    offAtag = calcOff(arraySize, Atag);
-
-    return (offA - offAtag) <= epsilon;
-}
-
 /**
  * Find the sum of squares of all off-diagonal elements of the given matrix
  * @param arraySize - amount of datapoints
@@ -756,26 +684,6 @@ double calcOff(int arraySize, double ***matrix){
         }
     }
     return off;
-}
-
-/**
- * Gets 2 matrices, and cupy the 1'st to the 2'nd a matrix of size (N * N).
- * @param arraySize - amount of datapoints
- * @param matrix1 - source matrix
- * @param matrix2 - matrix to be updated
- */
-/** TODO: delete if not necessary */
-void copymatrix(int arraySize, double ***matrix1, double ***matrix2) {
-
-    int i,j;
-
-    for (i = 0; i < arraySize; i++) {
-        (*matrix2)[i][i] = (*matrix1)[i][i];
-        for (j = i+1; j < arraySize; j++) {
-            (*matrix2)[i][j] = (*matrix1)[i][j];
-            (*matrix2)[j][i] = (*matrix1)[j][i];
-        }
-    }
 }
 
 /**
@@ -898,8 +806,8 @@ void updateV(int arraySize, double ***V, double c, double s, int row, int col){
 }
 
 double **
-calcSpectralClusters(int *k, int arraySize, int isCAPI, double ***jacobiMatrix,
-                     double ***datapoints) {
+calcSpectralClusters(int *k, int arraySize, int isCAPI,
+                     double ***jacobiMatrix) {
 
     double **U, **T, **spkMatrix, **combined;
     int i, *init_centroids;
@@ -924,7 +832,6 @@ calcSpectralClusters(int *k, int arraySize, int isCAPI, double ***jacobiMatrix,
 
     T = U;
 
-    //TODO: K-Means algorithm - if CAPI - need to return to python for K-Means++
     if (isCAPI){
         return T;
     }
@@ -936,9 +843,10 @@ calcSpectralClusters(int *k, int arraySize, int isCAPI, double ***jacobiMatrix,
 
     spkMatrix = KMeansAlgorithm(*k, arraySize, &T, &init_centroids);
 
-    //TODO: free memory and finish
+    /** free memory and return results */
     free(init_centroids);
     freeMatrix(&T);
+
     return spkMatrix;
 }
 
@@ -1149,33 +1057,6 @@ void merge1(double ***combined, double ***tmp, int low, int mid, int high){
 }
 
 
-/** TODO: delete if not necessary */
-void sortEigenVectors(int arraySize, double ***jacobiMatrix, double **combined) {
-    int i, j, column;
-    double **pointer, **tmpMatrix = createMatrix(arraySize + 1, arraySize);
-
-    for(j = 0; j < arraySize; j++){                 // use temp t
-        column = (int) combined[1][j];
-        for(i = 0; i < arraySize + 1; i++){
-                tmpMatrix[i][j] = (*jacobiMatrix)[i][column];
-            }
-        }
-
-    for(i = 0; i < arraySize + 1; i++){                 // use temp t
-        for(j = 0; j < arraySize; j++) {
-            (*jacobiMatrix)[i][j] = tmpMatrix[i][j];
-        }
-    }
-
-    /** switch pointers **/
-    /**
-     * pointer = (*jacobiMatrix);
-     * jacobiMatrix = &tmpMatrix;
-     * freeMatrix(&pointer);
-                                */
-}
-
-
 /**
  * Returns K based on the biggest difference between two adjacent eigenValues
  * @param arraySize - amount of datapoints
@@ -1285,6 +1166,7 @@ void TesterToSortJacobi(){
     printf("\nThe Sorted Matrix is:\n");
     printTest(matrix, 9, 8);
 
+    freeMatrix(&matrix);
 }
 
 /** the method calculate weighted Adj Matrix on RANDOM Matrix */
