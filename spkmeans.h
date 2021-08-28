@@ -16,7 +16,8 @@ double **
 goalBasedProcess(int *k, int d, int arraySize, double ***datapoint,
                  enum goalEnum goal, int isCAPI);
 
-void printResult(double ***ret_matrix, enum goalEnum goal, int arraySize, int k);
+void printResult(double ***ret_matrix, enum goalEnum goal,
+        int arraySize, int k);
 
 void printRegular(double ***ret_matrix, int rows, int cols);
 
@@ -44,40 +45,36 @@ double ** calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
 
 double ** calcJacobi(int arraySize, double ***inputMatrix);
 
-void findmatrixP(int arraySize, double ***A, double *c, double *s, int *row, int *col);
+void findmatrixP(int arraySize, double ***A, double *c, double *s,
+                 int *row, int *col);
 
 void findMaxOffDiag(int arraySize, double ***A, int *row, int *col);
 
-void updateAtag(int arraySize, double ***A, double c, double s, int row, int col, double *offAtag);
+void updateAtag(int arraySize, double ***A, double c, double s, int row,
+                int col, double *offAtag);
 
 void updateV(int arraySize, double ***V, double c, double s, int row, int col);
 
 double calcOff(int arraySize, double ***matrix);
 
-double** copyJacoby(int arraySize, double ***Atag, double ***V);
+double **copyJacoby(int arraySize, double ***Atag, double ***V);
 
 
-double **
-calcSpectralClusters(int *k, int arraySize, int isCAPI, double ***jacobiMatrix);
+double **calcSpectralClusters(int *k, int arraySize, int isCAPI,
+                              double ***jacobiMatrix);
 
 /***/
 void sortEigenValues(int arraySize, double ***jacobiMatrix, double ***combined);
-void mergeSort1(double ***combined, double ***tmp, int low, int high);
-void merge1(double ***combined, double ***tmp, int low, int mid, int high);
+void mergeSortEigenValues(double ***combined, double ***tmp, int low, int high);
+void mergeCombined(double ***combined, double ***tmp, int low,
+                   int mid, int high);
 
 /***/
-/*
-void sortJacobi(int arraySize, double ***jacobiMatrix);
 
-void mergeSort(double **jacobiMatrix, double **eigenValuesSorted, int **newIndex, int low, int high);
-
-void merge(double **jacobiMatrix, double **eigenValuesSorted, int **newIndex, int low, int mid, int high);
-
-void sortEigenVectors(int arraySize, double ***jacobiMatrix, int *newIndex);
-*/
 int getK(int arraySize, double ***combined);
 
-double **getMatrixU(int k, int arraySize, double ***jacobiMatrix, double **combined);
+double **getMatrixU(int k, int arraySize, double ***jacobiMatrix,
+                    double **combined);
 
 void normalizeU(int k, int arraySize, double ***U);
 
@@ -110,11 +107,12 @@ double **centroidsFromList(double ***pointList, int **init_centroids, int k);
 
 int updateCentroidsPerDatap(double ***datapoint, double ***centroid,
                             int **datap_cluster_assignment, int d, int k,
-                            int arraySize, double ***sumArrayHead, int **countArray);
+                            int arraySize, double ***sumArrayHead,
+                            int **countArray);
 
 static void
 copyDatapoint(double ***datapoint, double **datap_array, int arraySize, int d);
 
 void fixZeros(double ***matrix, int rows, int cols);
 
-#endif //SOFTPROJ_FINAL_SPKMEANS_H
+#endif

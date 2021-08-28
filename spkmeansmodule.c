@@ -109,7 +109,8 @@ static PyObject *KMeansPlusPlusIntegration(PyObject *self, PyObject *args){
     }
 
     for (i = 0; i < k; i++){
-        init_centroids[i] = (int) PyLong_AsLong(PyList_GetItem(init_centroidsPyList, i));
+        init_centroids[i] = (int)
+                PyLong_AsLong(PyList_GetItem(init_centroidsPyList, i));
     }
 
     /* Running KMeans algorithm in C */
@@ -166,11 +167,13 @@ matrixToPyMatrix(double ***matrix, int row_count, int col_count) {
 
 /* Defining the methods that are visible to the C extension spkmeansmodule*/
 static PyMethodDef spkmeans_CAPI_Methods[] = {
-        {"initializeCProcess", (PyCFunction) initializeCProcess, METH_VARARGS,
-         PyDoc_STR("SPKMeans Function implementation in C")},
-        {"KMeansPlusPlusIntegration", (PyCFunction) KMeansPlusPlusIntegration,
+        {"initializeCProcess", (PyCFunction) initializeCProcess,
          METH_VARARGS,
-         PyDoc_STR("Uses KMeans++ python results to determine spectral clusters")},
+         PyDoc_STR("SPKMeans Function implementation in C")},
+        {"KMeansPlusPlusIntegration",
+         (PyCFunction) KMeansPlusPlusIntegration,
+         METH_VARARGS,
+         PyDoc_STR("Uses KMeans++ results to determine spectral clusters")},
         {NULL, NULL, 0, NULL}
 };
 

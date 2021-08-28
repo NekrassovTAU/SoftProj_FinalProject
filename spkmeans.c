@@ -34,7 +34,7 @@
  * main, a shell function for the spectral clustering algorithm implementation
  */
 int main(int argc, char *argv[]) {
-    int rowCount, colCount; //dummy variables, relevant only for C-API
+    int rowCount, colCount; /* dummy variables, relevant only for C-API */
     checkArgs(argc, argv, 0, &rowCount, &colCount);
     return 0;
 }
@@ -68,8 +68,8 @@ double **checkArgs(int argc, char **origArgv, int isCAPI, int *returnRowCount,
     ASSERT_ARGS(goal != INVALID)
 
 
-    /** process the datapoint file, and return info about their amount (arraySize)
-     * and number of properties (d) */
+    /** process the datapoint file, and return info about their amount
+     * (arraySize) and number of properties (d) */
     processDatapoints(origArgv[3], &datapoints, &d,
                       &arraySize);
 
@@ -81,7 +81,8 @@ double **checkArgs(int argc, char **origArgv, int isCAPI, int *returnRowCount,
     ret_matrix = initProcess(&k, d, arraySize, goal, &datapoints, isCAPI);
 
     /** Determining row and col size for return matrix */
-    determineRowAndCol(goal, k, arraySize, returnRowCount, returnColCount, 1);
+    determineRowAndCol(goal, k, arraySize, returnRowCount,
+                       returnColCount, 1);
 
     /** Free allocated memory and terminate*/
     freeMatrix(&datapoints);
@@ -135,8 +136,8 @@ void determineRowAndCol(enum goalEnum goal, int k, int arraySize, int *rowCount,
  * @param d - array used to return d and arraySize info back to
  *                         the checkArgs function
  */
-void
-processDatapoints(char *filename, double ***datapoint, int *d, int *arraySize) {
+void processDatapoints(char *filename, double ***datapoint, int *d,
+                       int *arraySize) {
 
     double *datap_array;
     char *token, *ptr, currRow[BUFFER_SIZE];
@@ -173,7 +174,7 @@ processDatapoints(char *filename, double ***datapoint, int *d, int *arraySize) {
             if (tail == (*d) * (*arraySize)) {
                 *arraySize *= 2;
                 datap_array = realloc(datap_array,
-                                       (*d) * (*arraySize) * sizeof(double));
+                                      (*d) * (*arraySize) * sizeof(double));
                 ASSERT_ERROR(datap_array != NULL)
             }
         }
@@ -255,7 +256,7 @@ initProcess(int *k, int d, int arraySize, enum goalEnum goal,
 /**
  * Takes the datapoint info, and returns relevant 1D support array according to
  * the goal, later will be converted to matrix form according to needs.
- * @param k - number of clusters to assign. if 0, we need to use EigGap Heuristic
+ * @param k - number of clusters to assign.if 0, we need to use EigGap Heuristic
  * @param d - dimension of datapoints
  * @param arraySize - amount of datapoints
  * @param datapoint - pointer to 2D-array containing all datapoints
@@ -323,25 +324,24 @@ goalBasedProcess(int *k, int d, int arraySize, double ***datapoint,
  * @param ret_matrix - pointer to matrix to be printed to user
  * @param goal - distinguishes between spk-printing and matrix-printing
  */
-void printResult(double ***ret_matrix, enum goalEnum goal, int arraySize, int k) {
+void printResult(double ***ret_matrix, enum goalEnum goal, int arraySize,
+                 int k) {
 
     int rows, cols;
 
     determineRowAndCol(goal, k, arraySize, &rows, &cols, 0);
     fixZeros(ret_matrix, rows, cols);
 
-    if((goal == wam) || (goal == lnorm)){
-        printRegular(ret_matrix, arraySize, arraySize);
-    }
     if(goal == jacobi){
         printJacobi(ret_matrix, arraySize);
     }
-    if(goal == ddg) {
+    else if(goal == ddg) {
         printDiagonal(ret_matrix, arraySize);
     }
-    if(goal == spk){
-        printRegular(ret_matrix, k, k);
+    else {
+        printRegular(ret_matrix, rows, cols);
     }
+
 }
 
 /**
@@ -546,10 +546,12 @@ double calcWeight(int d, double ***datapoint, int i, int j) {
 }
 
 /**
- * Takes the weighted matrix, and returns representation of the diagonal degree matrix
+ * Takes the weighted matrix, and returns representation of the diagonal
+ * degree matrix
  * @param arraySize - amount of datapoints
  * @param weightedAdjMatrix - pointer to 2D-array containing all the weights
- * @return 2-D array of size (1 * arraySize) represents the diag of the diagonal degree matrix
+ * @return 2-D array of size (1 * arraySize) represents the diag of the diagonal
+ *         degree matrix
  */
 double **calcDiagDegMatrix(int arraySize, double ***weightedAdjMatrix) {
 
@@ -599,7 +601,8 @@ double ** calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
         (normLaplacianMatrix)[i][i] = 1;
         for (j = i + 1; j < arraySize; j++) {
 
-            value = -(*diagDegMatrix)[0][i] * (*weightedAdjMatrix)[i][j] * (*diagDegMatrix)[0][j];
+            value = -(*diagDegMatrix)[0][i] * (*weightedAdjMatrix)[i][j] *
+                    (*diagDegMatrix)[0][j];
             (normLaplacianMatrix)[i][j] = value;
             (normLaplacianMatrix)[j][i] = value;
         }
@@ -609,7 +612,8 @@ double ** calcNormLaplacian(int arraySize, double ***weightedAdjMatrix,
 }
 
 /**
- * Takes a symmetrical matrix, and returns the result of running the Jacobi algorithm on it.
+ * Takes a symmetrical matrix, and returns the result of running the
+ * Jacobi algorithm on it.
  * @param arraySize - size of the nXn matrix
  * @param inputMatrix - pointer to 2D array, which is symmetrical matrix
  * @return The jacobi matrix
@@ -631,14 +635,16 @@ double ** calcJacobi(int arraySize, double ***inputMatrix) {
     do {
         offA = offAtag;
 
-        findmatrixP(arraySize, &A, &c, &s, &row, &col); // P
-        updateAtag(arraySize, &A, c, s, row, col, &offAtag); // A' = P^T * A * P
-        updateV(arraySize, &V, c, s, row, col);  // V *= P
+        findmatrixP(arraySize, &A, &c, &s, &row, &col); /* P */
+        /* A' = P^T * A * P */
+        updateAtag(arraySize, &A, c, s, row, col, &offAtag);
+        updateV(arraySize, &V, c, s, row, col);  /* V *= P */
 
-        converge = (offA - offAtag) < epsilon ? 1 : 0;
+        converge = (offA - offAtag) <= epsilon ? 1 : 0;
         iterations++;
 
-     } while (!converge && (iterations < 100)); // as long as (delta > epsilon) or number of iterations is under 100
+        /* as long as (delta > epsilon) or number of iterations is under 100 */
+     } while (!converge && (iterations < 100));
 
     /** A has the eigenvalues
       *  V has the eigenvectors */
@@ -646,14 +652,15 @@ double ** calcJacobi(int arraySize, double ***inputMatrix) {
     jacobiMatrix = copyJacoby(arraySize, &A, &V);
 
     freeMatrix(&V);
-    //A is either normLaplacian or datapoints, which are freed later on
+    /* A is either normLaplacian or datapoints, which are freed later on */
 
     return jacobiMatrix;
 }
 
 
 /**
- * Copies the eigenValues and eigenVectors into the final jacobiMatrix and returns it
+ * Copies the eigenValues and eigenVectors into the final jacobiMatrix
+ * and returns it
  * @param arraySize - amount of datapoints
  * @param Atag - pointer to 2-D array containing the eigenValues on the diag
  * @param V - pointer to 2-D array containing the eigenVectors as columns
@@ -666,11 +673,11 @@ double **copyJacoby(int arraySize, double ***Atag, double ***V) {
 
     jacobiMatrix = createMatrix(arraySize+1, arraySize);
 
-    for(j = 0; j < arraySize; j++) {// copy the EigenValues
+    for(j = 0; j < arraySize; j++) { /* copy the EigenValues */
         jacobiMatrix[0][j] = (*Atag)[j][j];
     }
 
-    for(i = 1; i < arraySize + 1; i++) { // copy the EigenVectors
+    for(i = 1; i < arraySize + 1; i++) { /* copy the EigenVectors */
         for(j = 0; j < arraySize; j++){
             jacobiMatrix[i][j] = (*V)[i-1][j];
         }
@@ -702,10 +709,13 @@ double calcOff(int arraySize, double ***matrix){
  * @param A - 2-D symmetric array
  * @param c - pointer to the value in the index (row,row) in matrix P
  * @param s - pointer to the value in the index (row,col) in matrix P
- * @param row - pointer to the row index of the max value in A (off diag), to be calculated
- * @param col - pointer to the col index of the max value in A (off diag), to be calculated
+ * @param row - pointer to the row index of the max value in A (off diag),
+ *              to be calculated
+ * @param col - pointer to the col index of the max value in A (off diag),
+ *              to be calculated
  */
-void findmatrixP(int arraySize, double ***A, double *c, double *s, int *row, int *col) {
+void findmatrixP(int arraySize, double ***A, double *c, double *s,
+                 int *row, int *col) {
 
     double teta, t, sign = -1;
     findMaxOffDiag(arraySize, A, row, col);
@@ -725,8 +735,10 @@ void findmatrixP(int arraySize, double ***A, double *c, double *s, int *row, int
  * Find the index of the maximum odd-diag value in A.
  * @param arraySize - amount of datapoints
  * @param A - 2-D symmetric array
- * @param row - pointer to the row index of the max value in A (off diag), to be calculated
- * @param col - pointer to the col index of the max value in A (off diag), to be calculated
+ * @param row - pointer to the row index of the max value in A (off diag),
+ *              to be calculated
+ * @param col - pointer to the col index of the max value in A (off diag),
+ *              to be calculated
  */
 void findMaxOffDiag(int arraySize, double ***A, int *row, int *col) {
 
@@ -745,7 +757,8 @@ void findMaxOffDiag(int arraySize, double ***A, int *row, int *col) {
 }
 
 /**
- *Calculate the matrix Atag using the current A and P (based on c&s) : A' = P^T * A * P
+ *Calculate the matrix Atag using the current A and P (based on c&s) :
+ * A' = P^T * A * P
  * & update the offAtag accordingly to the changes made
  * @param arraySize - amount of datapoints
  * @param A - 2-D array to be calculated based on the given one
@@ -755,11 +768,12 @@ void findMaxOffDiag(int arraySize, double ***A, int *row, int *col) {
  * @param col - col index of the max value in Atag (off diag)
  * @param offAtag - pointer to the current off(A) value
  */
-void updateAtag(int arraySize, double ***A, double c, double s, int row, int col, double *offAtag) {
+void updateAtag(int arraySize, double ***A, double c, double s,
+                int row, int col, double *offAtag) {
 
     int r;
-    double ri, rj, ij, ii, jj, sum;
-    sum = 0;
+    double ri, rj, ij, ii, jj;
+
     /** update each Atag[r,i]/Atag[r,j], for : r != i,j
      * can cut computation in half because the matrix is symmetric */
     for (r = 0; r < arraySize; r++) {
@@ -771,8 +785,6 @@ void updateAtag(int arraySize, double ***A, double c, double s, int row, int col
             (*A)[row][r] = (*A)[r][row];
             (*A)[r][col] = (c * rj) + (s * ri);
             (*A)[col][r] = (*A)[r][col];
-            sum +=  2 * ((*A)[r][row] * (*A)[r][row] + (*A)[r][col] * (*A)[r][col]) - 2 * (ri * ri + rj * rj);
-       //     *offAtag += 2 * ((*A)[r][row] * (*A)[r][row] + (*A)[r][col] * (*A)[r][col]) - 2 * (ri * ri + rj * rj);
         }
     }
     /**  Atag[i,i] / Atag[j,j]/ Atag[i,j] / Atag[j,i] */
@@ -789,7 +801,8 @@ void updateAtag(int arraySize, double ***A, double c, double s, int row, int col
 }
 
 /**
- *Calculate the current matrix V, which is the Eigenvectors matrix. V *= P (based on c&s)
+ *Calculate the current matrix V, which is the Eigenvectors matrix.
+ * V *= P (based on c & s)
  * @param arraySize - amount of datapoints
  * @param V - 2-D array to be calculated
  * @param c - the value of P[row][row]
@@ -815,6 +828,7 @@ void updateV(int arraySize, double ***V, double c, double s, int row, int col){
     }
 }
 
+
 double **
 calcSpectralClusters(int *k, int arraySize, int isCAPI,
                      double ***jacobiMatrix) {
@@ -823,18 +837,19 @@ calcSpectralClusters(int *k, int arraySize, int isCAPI,
     int i, *init_centroids;
 
     /** create (2 * n) matrix, which includes the eigenValues in the 1'st line,
-      * and the original index of each eigenValue in the line below  */
+      * and the original index of each eigenValue in the line below */
     combined = createMatrix(2, arraySize);
 
     /** sort jacobi's eigenValues*/
     sortEigenValues(arraySize, jacobiMatrix, &combined);
 
-    /** determine k (if k==0) AND change k variable accordingly, important for CAPI */
+    /** determine k (if k==0) AND change k variable accordingly,
+     * important for CAPI */
     if(*k == 0){
         *k = getK(arraySize, &combined);
     }
 
-    /** create U with the first k sorted jacobi's eigenVectors & normalize it*/
+    /** create U with the first k sorted jacobi's eigenVectors & normalize it */
     U = getMatrixU(*k, arraySize, jacobiMatrix, combined);
     freeMatrix(&combined);
 
@@ -859,6 +874,7 @@ calcSpectralClusters(int *k, int arraySize, int isCAPI,
 
     return spkMatrix;
 }
+
 
 double **
 KMeansAlgorithm(int k, int arraySize, double ***T, int **init_centroids) {
@@ -932,7 +948,8 @@ int updateCentroidsPerDatap(double ***datapoint, double ***centroid,
         for (j = 0; j < k; j++ ){
             dist = 0;
             for (v = 0; v < d; v++){
-                dist += ((*datapoint)[i][v] - (*centroid)[j][v])*((*datapoint)[i][v] - (*centroid)[j][v]);
+                dist += ((*datapoint)[i][v] - (*centroid)[j][v]) *
+                        ((*datapoint)[i][v] - (*centroid)[j][v]);
             }
 
             if (min_dist > dist){
@@ -940,15 +957,17 @@ int updateCentroidsPerDatap(double ***datapoint, double ***centroid,
                 min_cluster = j;
             }
         }
-        if((*datap_cluster_assignment)[i] != min_cluster){ /* there is a change in one or more of the data points cluster assignment */
+        if((*datap_cluster_assignment)[i] != min_cluster){
+            /* there is a change in one or more of the data points
+             * cluster assignment */
             update = 1;
         }
         (*datap_cluster_assignment)[i] = min_cluster;
     }
 
-    /* loop to initialize sum/counter*/
+    /* loop to initialize sum/counter */
 
-    for(i = 0; i < arraySize; i++){ /*count and sum up all the sizes*/
+    for(i = 0; i < arraySize; i++){ /* count and sum up all the sizes */
         currCluster = (*datap_cluster_assignment)[i];
         (*countArray)[currCluster]++;
         for(v = 0; v < d; v++){
@@ -956,10 +975,11 @@ int updateCentroidsPerDatap(double ***datapoint, double ***centroid,
         }
     }
 
-    /*update the new clusters and initialize to 0*/
-    for(j = 0; j < k; j++) { /* each loop for different cluster*/
-  //      printf(" %d ", (*countArray)[j]);
-        for (v = 0; v < d; v++) { /* each loop for opponent of the current cluster*/
+    /** update the new clusters and initialize to 0 */
+    for(j = 0; j < k; j++) {
+        /* each loop for different cluster */
+        for (v = 0; v < d; v++) {
+            /* each loop for feature of the current cluster*/
 
             new_value = (*sumArrayHead)[j][v] / (*countArray)[j];
             (*centroid)[j][v] = new_value;
@@ -973,12 +993,14 @@ int updateCentroidsPerDatap(double ***datapoint, double ***centroid,
 
 
 /**
- * Takes the jacobi matrix, and update the combined matrix to possess the eigenValues in sorted order.
+ * Takes the jacobi matrix, and update the combined matrix to possess
+ * the eigenValues in sorted order.
  * @param arraySize - size of the nXn matrix
  * @param jacobiMatrix - pointer to the jacobi matrix
- * @param combined - pointer to 2D array, represents pairs of eigenValue & original index
+ * @param combined - pointer to 2D array, represents pairs of eigenValue &
+ *                  original index
  */
-void sortEigenValues(int arraySize, double ***jacobiMatrix, double ***combined) {
+void sortEigenValues(int arraySize, double ***jacobiMatrix, double ***combined){
     int i;
     double **tmp;
 
@@ -989,27 +1011,30 @@ void sortEigenValues(int arraySize, double ***jacobiMatrix, double ***combined) 
         (*combined)[1][i] = i;
     }
 
-    mergeSort1(combined, &tmp, 0, arraySize - 1); // sort the eigenValues
+    /* sort the eigenValues */
+    mergeSortEigenValues(combined, &tmp, 0, arraySize - 1);
 
     freeMatrix(&tmp);
 }
 
 
 /**
- * Takes the jacobi matrix, sort it's eigenValues, and update the combined matrix.
- * @param combined - pointer to 2D array, includes pairs of eigenValue & originalValue
+ * Takes the jacobi matrix, sort it's eigenValues, and update the
+ * combined matrix.
+ * @param combined - pointer to 2D array, includes pairs of eigenValue &
+ *                  originalValue
  * @param tmp - pointer to 2D Auxiliary array to combined
  * @param low - the lower index of the subArray to be sorted
  * @param high - the higher index of the subArray to be sorted
  */
-void mergeSort1(double ***combined, double ***tmp, int low, int high){
+void mergeSortEigenValues(double ***combined, double ***tmp, int low, int high){
     int mid;
 
     if(low < high){
         mid = (low + high) / 2;
-        mergeSort1(combined, tmp, low, mid);
-        mergeSort1(combined, tmp, mid + 1, high);
-        merge1(combined, tmp, low, mid, high);
+        mergeSortEigenValues(combined, tmp, low, mid);
+        mergeSortEigenValues(combined, tmp, mid + 1, high);
+        mergeCombined(combined, tmp, low, mid, high);
     }
     else{
         return;
@@ -1018,14 +1043,17 @@ void mergeSort1(double ***combined, double ***tmp, int low, int high){
 
 
 /**
- * Takes the combined 2D array, and merge 2 sorted subArrays of it, based on the given indices
- * @param combined - pointer to 2D array, includes pairs of eigenValue & originalValue
+ * Takes the combined 2D array, and merge 2 sorted subArrays of it,
+ * based on the given indices
+ * @param combined - pointer to 2D array, includes pairs of eigenValue &
+ *                  originalValue
  * @param tmp - pointer to 2D Auxiliary array to combined
  * @param low - the lower index of the 1'st subArray to be merged
  * @param mid - the higher index of the 1'st subArray to be merged
  * @param high - the higher index of the 2'nd subArray to be merged
  */
-void merge1(double ***combined, double ***tmp, int low, int mid, int high){
+void mergeCombined(double ***combined, double ***tmp, int low,
+                   int mid, int high){
     int l1, l2, i;
 
     for(l1 = low, l2 = mid+1, i = low; l1 <= mid && l2 <= high; i++) {
@@ -1045,7 +1073,7 @@ void merge1(double ***combined, double ***tmp, int low, int mid, int high){
         }
     }
 
-    while(l1 <= mid){  // copy the rest of the "1'st array"
+    while(l1 <= mid){  /* copy the rest of the "1'st array" */
         (*tmp)[0][i] = (*combined)[0][l1];
         (*tmp)[1][i] = (*combined)[1][l1];
 
@@ -1053,14 +1081,16 @@ void merge1(double ***combined, double ***tmp, int low, int mid, int high){
         l1++;
     }
 
-    while(l2 <= high){ // copy the rest of the "2'nd array"
+    while(l2 <= high){ /* copy the rest of the "2'nd array" */
         (*tmp)[0][i] = (*combined)[0][l2];
         (*tmp)[1][i] = (*combined)[1][l2];
         i++;
         l2++;
     }
 
-    for(i = low; i <= high; i++){    // copy the eigenValues from the temp array, back to the original jacobiMatrix
+    /* copy the eigenValues from the temp array, back to the
+     * original jacobiMatrix */
+    for(i = low; i <= high; i++){
         (*combined)[0][i] = (*tmp)[0][i];
         (*combined)[1][i] = (*tmp)[1][i];
     }
@@ -1088,21 +1118,26 @@ int getK(int arraySize, double ***combined) {
 
 
 /**
- * Returns matrix U (n*k), which is the first K columns (eigenVectors) in jacobiMatrix, based on combined
+ * Returns matrix U (n*k), which is the first K columns (eigenVectors)
+ * in jacobiMatrix, based on combined
  * @param k - number of initial clusters
  * @param arraySize - amount of datapoints
- * @param jacobiMatrix - jacobi matrix which includes eigenValues and EigenVectors
- * @param combined - 2D array contatins pairs of sorted eigenValues & original index
+ * @param jacobiMatrix - jacobi matrix which includes eigenValues & EigenVectors
+ * @param combined - 2D array contatins pairs of sorted eigenValues &
+ *                  original index
  * @return the matrix U
  */
-double **getMatrixU(int k, int arraySize, double ***jacobiMatrix, double **combined){
+double **getMatrixU(int k, int arraySize, double ***jacobiMatrix,
+                    double **combined){
 
     int i, j, col;
     double **U = createMatrix(arraySize, k);
 
-    /** take the first K eigenVectors if the jacobi was sorted by the eigenValue */
+    /** take the first K eigenVectors assuming jacobi is sorted by ascending
+     * order of the eigenValues */
     for(j = 0; j < k; j++){
-        col = (int) combined[1][j]; // The original index of the j eigenValue is sorted order
+        /* The original index of the j eigenValue is sorted order */
+        col = (int) combined[1][j];
         for(i = 0; i < arraySize; i++){
             U[i][j] = (*jacobiMatrix)[i+1][col];
         }
@@ -1129,13 +1164,10 @@ void normalizeU(int k, int arraySize, double ***U){
         }
 
         valueOfRow = sqrt(valueOfRow);
-        /*if(valueOfRow == 0){ // in case we divide in 0
-            continue;
-        }
-         */
+
         if(valueOfRow != 0){
             for (j = 0; j < k; j++) {
-                (*U)[i][j] /= valueOfRow;   // T(i,j) = U(i,j) / valueOfRow
+                (*U)[i][j] /= valueOfRow;   /* T(i,j) = U(i,j) / valueOfRow */
             }
         }
     }
@@ -1145,7 +1177,6 @@ void normalizeU(int k, int arraySize, double ***U){
 /** Replace -0.0000 with 0 */
 void fixZeros(double ***matrix, int rows, int cols){
 
-    printf("rows: %d, cols = %d", rows, cols);
     int i, j;
 
     for(i = 0; i < rows; i++){
@@ -1185,7 +1216,7 @@ void TesterToSortJacobi(){
     printTest(matrix, 9, 8);
 
     /** sort the matrix by the first line */
-//    sortJacobi(8, &matrix);
+/*    sortJacobi(8, &matrix); */
 
     /** print the sorted Matrix */
     printf("\nThe Sorted Matrix is:\n");
