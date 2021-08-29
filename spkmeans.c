@@ -120,12 +120,7 @@ void determineRowAndCol(enum goalEnum goal, int k, int arraySize, int *rowCount,
             break;
         }
         case ddg:{
-            if (isCAPI){
-                *rowCount = arraySize;
-            }
-            else{
-                *rowCount = 1;
-            }
+            *rowCount = 1;
             *colCount = arraySize;
             break;
         }

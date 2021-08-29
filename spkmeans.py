@@ -77,8 +77,6 @@ def print_init_centroids(init_centroids):
 
 
 def print_results(ret_matrix, goal):
-    row = len(ret_matrix)
-    col = len(ret_matrix[0])
 
     ret_matrix = fix_zeros(ret_matrix)
 
@@ -87,6 +85,9 @@ def print_results(ret_matrix, goal):
 
     if goal == "jacobi":
         ret_matrix = invert_jacobi(ret_matrix)
+
+    row = len(ret_matrix)
+    col = len(ret_matrix[0])
 
     for i in range(row):
         for j in range(col):
@@ -110,9 +111,9 @@ def fix_zeros(ret_matrix):
 
 
 def ddg_printable(ret_matrix):
-    n = len(ret_matrix)
+    n = len(ret_matrix[0])
 
-    matrix = [[0 for _ in range(n)] for _ in range(n)]
+    matrix = [[0.0 for _ in range(n)] for _ in range(n)]
     for i in range(n):
         matrix[i][i] = ret_matrix[0][i]
 
