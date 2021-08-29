@@ -28,7 +28,7 @@ static PyObject *initializeCProcess(PyObject *self, PyObject *args){
     /* argument in args is sys.argv from python only */
 
     /* Initialization and argument parsing */
-    int i, j, argc, row_count, col_count, arraySize, d;
+    int i, argc, row_count, col_count;
     char **argv, *temp;
     double **ret_matrix;
     PyObject *argv_PyArray, *retPyMatrix;
@@ -100,6 +100,7 @@ static PyObject *KMeansPlusPlusIntegration(PyObject *self, PyObject *args){
     k = (int) PyObject_Length(init_centroidsPyList);
     matrix = createMatrix(arraySize, k);
     init_centroids = calloc(k, sizeof(int));
+    ASSERT_ERROR(init_centroids != NULL)
 
     for (i = 0 ; i < arraySize ; i++){
         tmpPyList = PyList_GetItem(matrixPyList, i);
@@ -139,6 +140,7 @@ static PyObject ** createPyListArray(int n, int m){
     int i;
 
     array = calloc(n, sizeof (PyObject* ));
+    ASSERT_ERROR(array != NULL)
 
     for (i = 0; i < n; i++) {
         array[i] = PyList_New(m);

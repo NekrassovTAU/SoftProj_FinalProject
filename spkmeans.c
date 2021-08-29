@@ -84,7 +84,7 @@ double **checkArgs(int argc, char **origArgv, int isCAPI, int *returnRowCount,
     determineRowAndCol(goal, k, arraySize, returnRowCount,
                        returnColCount, 1);
 
-    /** Free allocated memory and terminate*/
+    /** Free memory and terminate*/
     freeMatrix(&datapoints);
 
 
@@ -117,6 +117,16 @@ void determineRowAndCol(enum goalEnum goal, int k, int arraySize, int *rowCount,
                 *rowCount = k;
             }
             *colCount = k;
+            break;
+        }
+        case ddg:{
+            if (isCAPI){
+                *rowCount = arraySize;
+            }
+            else{
+                *rowCount = 1;
+            }
+            *colCount = arraySize;
             break;
         }
         default:{
@@ -869,6 +879,7 @@ double **calcSpectralClusters(int *k, int arraySize, int isCAPI,
     }
 
     init_centroids = calloc((*k), sizeof(int));
+    ASSERT_ERROR(init_centroids != NULL)
     for (i=0 ; i < (*k); i++){
         init_centroids[i] = i;
     }
@@ -895,6 +906,7 @@ double **KMeansAlgorithm(int k, int arraySize,
     t_centroids = centroidsFromList(T, init_centroids, k);
 
     datap_cluster_assignment = calloc( arraySize , sizeof (int));
+    ASSERT_ERROR(datap_cluster_assignment != NULL)
 
     sumArrayHead = createMatrix(k, k);
 
