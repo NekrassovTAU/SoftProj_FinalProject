@@ -58,14 +58,21 @@ double **checkArgs(int argc, char **origArgv, int isCAPI, int *returnRowCount,
 
     ASSERT_ARGS(argc > 3)
 
-    k = strtol(origArgv[1], &ptr, 10);
-
-    /** checking whether k>=0,
-     * strcmp with "0" used for the case which strtol fails and returns 0*/
-    ASSERT_ARGS(k > 0 || !strcmp(origArgv[1], "0"))
-
     goal = checkGoal(origArgv[2]);
     ASSERT_ARGS(goal != INVALID)
+
+    if (goal == spk){
+        k = strtol(origArgv[1], &ptr, 10);
+
+        /** checking whether k>=0,
+         * strcmp with "0" used for the case which strtol fails and returns 0*/
+        ASSERT_ARGS(k > 0 || !strcmp(origArgv[1], "0"))
+    }
+    /** if goal != spk, we do not care about the value of k
+     * not need to check argument due to 2.7.12 in document*/
+    else{
+        k = 0;
+    }
 
 
     /** process the datapoint file, and return info about their amount
