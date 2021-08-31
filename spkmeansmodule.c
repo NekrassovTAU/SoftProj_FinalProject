@@ -102,6 +102,9 @@ static PyObject *KMeansPlusPlusIntegration(PyObject *self, PyObject *args){
     init_centroids = calloc(k, sizeof(int));
     ASSERT_ERROR(init_centroids != NULL)
 
+    tmpPyList = Py_None; /* initializing in order to not get warning from
+                            * nova, works without it too*/
+
     for (i = 0 ; i < arraySize ; i++){
         tmpPyList = PyList_GetItem(matrixPyList, i);
         for (j = 0 ; j < k; j++){

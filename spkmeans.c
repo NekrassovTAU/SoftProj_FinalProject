@@ -74,7 +74,6 @@ double **checkArgs(int argc, char **origArgv, int isCAPI, int *returnRowCount,
         k = 0;
     }
 
-
     /** process the datapoint file, and return info about their amount
      * (arraySize) and number of properties (d) */
     processDatapoints(origArgv[3], &datapoints, &d,
@@ -215,7 +214,7 @@ void processDatapoints(char *filename, double ***datapoint, int *d,
  * @param arraySize - amount of datapoints
  * @param d - dimension of datapoints
  */
-static void
+void
 copyDatapoint(double ***datapoint, double **datap_array, int arraySize, int d) {
     int i, j, count;
     count = 0;
@@ -443,7 +442,7 @@ void printDiagonal(double ***ret_matrix, int arraySize) {
  * @param string - represents goal of the call to main
  * @return appropriate enum for goal, or INVALID if invalid
  */
-static enum goalEnum checkGoal(char *string) {
+enum goalEnum checkGoal(char *string) {
     if (!strcmp(string, "spk")) {
         return spk;
     }

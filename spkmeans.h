@@ -26,7 +26,7 @@ void printJacobi(double ***retArray, int arraySize);
 void printDiagonal(double ***ret_matrix , int arraySize);
 
 
-static enum goalEnum checkGoal(char *string);
+enum goalEnum checkGoal(char *string);
 
 double ** createMatrix(int n, int m);
 
@@ -110,7 +110,7 @@ int updateCentroidsPerDatap(double ***datapoint, double ***centroid,
                             int arraySize, double ***sumArrayHead,
                             int **countArray);
 
-static void
+void
 copyDatapoint(double ***datapoint, double **datap_array, int arraySize, int d);
 
 void fixZeros(double ***matrix, int rows, int cols);
