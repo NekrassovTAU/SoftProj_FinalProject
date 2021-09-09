@@ -98,7 +98,7 @@ def print_results(ret_matrix, goal):
             print("{:.4f}".format(ret_matrix[i][j]), end="")
             if j != col - 1:
                 print(',', end="")
-            else:
+            elif i != row - 1:
                 print("\n", end="")
 
 

@@ -381,7 +381,7 @@ void printRegular(double ***ret_matrix, int rows, int cols){
             if (j != cols - 1){   /* not last in the line */
                 printf("%s", ",");
             }
-            else{
+            else if (i != rows - 1){
                 printf("\n");
             }
         }
@@ -414,7 +414,7 @@ void printJacobi(double ***ret_matrix, int arraySize) {
             printf("%.4f", (*ret_matrix)[i][j]);
             if (i != arraySize) {
                 printf("%s", ",");
-            } else {
+            } else if (i != arraySize - 1){
                 printf("\n");
             }
         }
@@ -441,7 +441,7 @@ void printDiagonal(double ***ret_matrix, int arraySize) {
             if (j != arraySize - 1){   /* not last component of the cluster */
                 printf("%s", ",");
             }
-            else{
+            else if (i != arraySize - 1){
                 printf("\n");
             }
         }
