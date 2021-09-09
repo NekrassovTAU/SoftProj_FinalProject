@@ -10,9 +10,6 @@
         exit(0);\
     }
 
-#define BEEP(num) \
-printf("%s %d%s", "MODULE Check #" , num, "\n");
-
 
 static PyObject *initializeCProcess(PyObject *self, PyObject *args);
 
@@ -24,6 +21,11 @@ static PyObject ** createPyListArray(int n, int m);
 static PyObject *
 matrixToPyMatrix(double ***matrix, int row_count, int col_count);
 
+/**
+ * Receives arguments from Python, and processes them through the C-based
+ * algorithm
+ * Returns matrix containing results for printing / K-Means++
+ * */
 static PyObject *initializeCProcess(PyObject *self, PyObject *args){
     /* argument in args is sys.argv from python only */
 
@@ -57,11 +59,7 @@ static PyObject *initializeCProcess(PyObject *self, PyObject *args){
         argv[i] = strdup(temp);
     }
 
-    BEEP(1)
-
-    ret_matrix = checkArgs(argc, argv, 1, &row_count, &col_count);
-
-    BEEP(2)
+    ret_matrix = startCSPKMeansExec(argc, argv, 1, &row_count, &col_count);
 
     /*Returning the data as a Python list of lists*/
     retPyMatrix = matrixToPyMatrix(&ret_matrix, row_count, col_count);
@@ -78,6 +76,10 @@ static PyObject *initializeCProcess(PyObject *self, PyObject *args){
     return retPyMatrix;
 }
 
+/**
+ * Receives the matrix T and the result of K-Means++ (initial centroids),
+ * runs it through the KMeans algorithm, and returns the final centroids
+ * */
 static PyObject *KMeansPlusPlusIntegration(PyObject *self, PyObject *args){
     /* argument in args is retPyMatrix from initializeCProcess,
      * and a list of initial centroids*/
@@ -131,13 +133,13 @@ static PyObject *KMeansPlusPlusIntegration(PyObject *self, PyObject *args){
     Py_DECREF(matrixPyList);
     Py_DECREF(tmpPyList);
 
-    BEEP(3)
-
     return retPyMatrix;
 }
 
 
-
+/**
+ * Creates an array containing PyLists, used to initialize a python nested list
+ * */
 static PyObject ** createPyListArray(int n, int m){
     PyObject **array;
     int i;
@@ -152,6 +154,14 @@ static PyObject ** createPyListArray(int n, int m){
     return array;
 }
 
+/**
+ * Takes a C-matrix and converts it to a Python matrix (nested list, acts like
+ * matrix)
+ * @param matrix - C-matrix to be copied to python
+ * @param row_count - amount of rows in matrix
+ * @param col_count - amount of columns in matrix
+ * @return
+ */
 static PyObject *
 matrixToPyMatrix(double ***matrix, int row_count, int col_count) {
 

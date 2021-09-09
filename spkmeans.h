@@ -5,8 +5,8 @@ enum goalEnum {
     spk, wam, ddg, lnorm, jacobi, INVALID
 };
 
-double **checkArgs(int argc, char **origArgv, int isCAPI, int *returnRowCount,
-                   int *returnColCount);
+double **startCSPKMeansExec(int argc, char **origArgv, int isCAPI,
+                            int *returnRowCount, int *returnColCount);
 
 double **
 initProcess(int *k, int d, int arraySize, enum goalEnum goal,

@@ -7,8 +7,11 @@ from spkmeansmodule import initializeCProcess, KMeansPlusPlusIntegration
 def main():
     arguments = sys.argv.copy()
 
+    # run C program through module
     ret_matrix = initializeCProcess(arguments)
 
+    # in case of goal = spk, we need to run KMeans++ on T and
+    # return initial centroids to KMeans in C
     if sys.argv[2] == "spk":
         init_centroids = k_means_plus_plus(ret_matrix)
         print_init_centroids(init_centroids)
@@ -19,6 +22,7 @@ def main():
 
 
 # code copied from HW2
+# calculates KMeans++ on T
 def k_means_plus_plus(datapoints):
     array_size = len(datapoints)
     k = len(datapoints[0])
